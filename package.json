@@ -1,0 +1,14 @@
+{
+  "name": "cloudide-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "ide-backend",
+    "runner",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w ide-backend & npm run dev -w runner & npm run dev -w frontend",
+    "test": "npm run test -w ide-backend && npm run test -w runner"
+  }
+}

@@ -1,0 +1,190 @@
+.chroma-grid {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-auto-rows: auto;
+  align-content: start;
+  gap: 0.75rem;
+  margin: 0 auto;
+  padding: 0.5rem;
+  box-sizing: border-box;
+
+  --x: 50%;
+  --y: 50%;
+  --r: 220px;
+}
+
+@media (max-width: 640px) {
+  .chroma-grid {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 0.5rem;
+    padding: 0.25rem;
+  }
+}
+
+.chroma-card {
+  position: relative;
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #2d3657;
+  transition: border-color 0.3s ease, transform 0.2s ease;
+  background: var(--card-gradient);
+
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+  --spotlight-color: rgba(255, 255, 255, 0.28);
+}
+
+.chroma-card:hover {
+  border-color: var(--card-border);
+  transform: translateY(-2px);
+}
+
+.chroma-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mouse-x) var(--mouse-y), var(--spotlight-color), transparent 70%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  z-index: 2;
+}
+
+.chroma-card:hover::before {
+  opacity: 1;
+}
+
+.chroma-img-wrapper {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.chroma-img-wrapper img,
+.chroma-img-wrapper video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+  background: #040915;
+}
+
+.chroma-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(8, 17, 39, 0.95), rgba(3, 6, 17, 0.9));
+  color: #95a3bf;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.chroma-info {
+  position: relative;
+  z-index: 1;
+  padding: 0.7rem 0.9rem;
+  color: #fff;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  row-gap: 0.24rem;
+  column-gap: 0.6rem;
+}
+
+.chroma-info .name {
+  margin: 0;
+  font-size: 0.88rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chroma-info .role,
+.chroma-info .handle {
+  margin: 0;
+  color: #b1bfd8;
+  font-size: 0.72rem;
+}
+
+.chroma-info .role {
+  grid-column: 1 / span 2;
+}
+
+.chroma-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  backdrop-filter: grayscale(1) brightness(0.78);
+  -webkit-backdrop-filter: grayscale(1) brightness(0.78);
+  background: rgba(0, 0, 0, 0.001);
+
+  mask-image: radial-gradient(
+    circle var(--r) at var(--x) var(--y),
+    transparent 0%,
+    transparent 15%,
+    rgba(0, 0, 0, 0.12) 32%,
+    rgba(0, 0, 0, 0.24) 48%,
+    rgba(0, 0, 0, 0.38) 64%,
+    rgba(0, 0, 0, 0.55) 80%,
+    white 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    circle var(--r) at var(--x) var(--y),
+    transparent 0%,
+    transparent 15%,
+    rgba(0, 0, 0, 0.12) 32%,
+    rgba(0, 0, 0, 0.24) 48%,
+    rgba(0, 0, 0, 0.38) 64%,
+    rgba(0, 0, 0, 0.55) 80%,
+    white 100%
+  );
+}
+
+.chroma-fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  backdrop-filter: grayscale(1) brightness(0.78);
+  -webkit-backdrop-filter: grayscale(1) brightness(0.78);
+  background: rgba(0, 0, 0, 0.001);
+
+  mask-image: radial-gradient(
+    circle var(--r) at var(--x) var(--y),
+    white 0%,
+    white 15%,
+    rgba(255, 255, 255, 0.9) 32%,
+    rgba(255, 255, 255, 0.74) 50%,
+    rgba(255, 255, 255, 0.52) 68%,
+    rgba(255, 255, 255, 0.28) 84%,
+    transparent 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    circle var(--r) at var(--x) var(--y),
+    white 0%,
+    white 15%,
+    rgba(255, 255, 255, 0.9) 32%,
+    rgba(255, 255, 255, 0.74) 50%,
+    rgba(255, 255, 255, 0.52) 68%,
+    rgba(255, 255, 255, 0.28) 84%,
+    transparent 100%
+  );
+
+  opacity: 1;
+  transition: opacity 0.25s ease;
+}

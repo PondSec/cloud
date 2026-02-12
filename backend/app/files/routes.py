@@ -10,10 +10,10 @@ from sqlalchemy import or_
 
 from ..common.audit import audit
 from ..common.errors import APIError
-from ..common.rbac import can_manage_node, current_user, scope_query_to_user
+from ..common.rbac import can_manage_node, current_user, permission_required, scope_query_to_user
 from ..common.storage import delete_storage_path, resolve_storage_path, save_upload, validate_node_name
 from ..extensions import db
-from ..models import AppSettings, FileNode, FileNodeType, User
+from ..models import AppSettings, FileNode, FileNodeType, PermissionCode, User
 
 
 files_bp = Blueprint("files", __name__, url_prefix="/files")
@@ -94,6 +94,7 @@ def _is_descendant(node: FileNode, maybe_parent: FileNode | None) -> bool:
 
 @files_bp.get("/tree")
 @jwt_required()
+@permission_required(PermissionCode.FILE_READ)
 def tree():
     user = current_user(required=True)
     assert user is not None
@@ -107,6 +108,7 @@ def tree():
 
 @files_bp.get("/list")
 @jwt_required()
+@permission_required(PermissionCode.FILE_READ)
 def list_files():
     user = current_user(required=True)
     assert user is not None
@@ -132,6 +134,7 @@ def list_files():
 
 @files_bp.post("/folder")
 @jwt_required()
+@permission_required(PermissionCode.FILE_WRITE)
 def create_folder():
     user = current_user(required=True)
     assert user is not None
@@ -151,7 +154,7 @@ def create_folder():
             raise APIError(403, "FORBIDDEN", "You cannot write in this folder.")
         owner_id = parent.owner_id
 
-    if owner_id != user.id and not user.has_permission("FILE_WRITE"):
+    if owner_id != user.id and not user.has_permission(PermissionCode.FILE_WRITE.value):
         raise APIError(403, "FORBIDDEN", "You cannot create folders for another user.")
 
     _assert_name_available(owner_id=owner_id, parent_id=parent_id, name=name)
@@ -181,6 +184,7 @@ def create_folder():
 
 @files_bp.post("/upload")
 @jwt_required()
+@permission_required(PermissionCode.FILE_WRITE)
 def upload_file():
     user = current_user(required=True)
     assert user is not None
@@ -248,6 +252,7 @@ def upload_file():
 
 @files_bp.get("/download/<int:node_id>")
 @jwt_required()
+@permission_required(PermissionCode.FILE_READ)
 def download_file(node_id: int):
     user = current_user(required=True)
     assert user is not None
@@ -270,6 +275,7 @@ def download_file(node_id: int):
 
 @files_bp.patch("/<int:node_id>")
 @jwt_required()
+@permission_required(PermissionCode.FILE_WRITE)
 def update_node(node_id: int):
     user = current_user(required=True)
     assert user is not None
@@ -319,6 +325,7 @@ def update_node(node_id: int):
 
 @files_bp.delete("/<int:node_id>")
 @jwt_required()
+@permission_required(PermissionCode.FILE_DELETE)
 def delete_node(node_id: int):
     user = current_user(required=True)
     assert user is not None
@@ -357,6 +364,7 @@ def delete_node(node_id: int):
 
 @files_bp.get("/recents")
 @jwt_required()
+@permission_required(PermissionCode.FILE_READ)
 def recents():
     user = current_user(required=True)
     assert user is not None
@@ -370,6 +378,7 @@ def recents():
 
 @files_bp.get("/search")
 @jwt_required()
+@permission_required(PermissionCode.FILE_READ)
 def search():
     user = current_user(required=True)
     assert user is not None

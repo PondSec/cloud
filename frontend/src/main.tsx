@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
 import App from './App';
+import { GlobalMediaPlayerProvider } from './contexts/GlobalMediaPlayerContext';
 import { UiPrefsProvider } from './contexts/UiPrefsContext';
 import { queryClient } from './lib/query-client';
 import './index.css';
@@ -15,7 +16,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <UiPrefsProvider>
         <BrowserRouter>
-          <App />
+          <GlobalMediaPlayerProvider>
+            <App />
+          </GlobalMediaPlayerProvider>
         </BrowserRouter>
         <Toaster richColors position="top-right" />
       </UiPrefsProvider>

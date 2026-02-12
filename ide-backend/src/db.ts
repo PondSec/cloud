@@ -110,6 +110,15 @@ export function deleteWorkspace(workspaceId: string, userId: string): void {
   db.prepare(`DELETE FROM workspaces WHERE id = ? AND user_id = ?`).run(workspaceId, userId);
 }
 
+export function renameWorkspace(workspaceId: string, userId: string, name: string): void {
+  db.prepare(`UPDATE workspaces SET name = ?, updated_at = ? WHERE id = ? AND user_id = ?`).run(
+    name,
+    new Date().toISOString(),
+    workspaceId,
+    userId,
+  );
+}
+
 export function updateWorkspaceTimestamp(workspaceId: string): void {
   db.prepare(`UPDATE workspaces SET updated_at = ? WHERE id = ?`).run(new Date().toISOString(), workspaceId);
 }

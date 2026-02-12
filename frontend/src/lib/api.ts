@@ -9,6 +9,8 @@ import type {
   FolderTreeNode,
   InternalShare,
   OnlyOfficeSession,
+  Permission,
+  Role,
   ShareAccess,
   SharedWithMeItem,
   User,
@@ -163,6 +165,12 @@ export const api = {
       link.click();
       URL.revokeObjectURL(url);
     },
+    async blob(nodeId: number): Promise<Blob> {
+      const response = await client.get<Blob>(`/files/download/${nodeId}`, {
+        responseType: 'blob',
+      });
+      return response.data;
+    },
   },
   admin: {
     async settings(): Promise<AdminSettings> {
@@ -177,10 +185,19 @@ export const api = {
       const { data } = await client.get<{ items: User[] }>('/admin/users');
       return data.items;
     },
+    async roles(): Promise<Role[]> {
+      const { data } = await client.get<{ items: Role[] }>('/admin/roles');
+      return data.items;
+    },
+    async permissions(): Promise<Permission[]> {
+      const { data } = await client.get<{ items: Permission[] }>('/admin/permissions');
+      return data.items;
+    },
     async createUser(payload: {
       username: string;
       password: string;
       bytes_limit?: number;
+      role_ids?: number[];
       role_names?: string[];
       is_active?: boolean;
     }): Promise<User> {
@@ -193,6 +210,22 @@ export const api = {
     },
     async deleteUser(userId: number): Promise<void> {
       await client.delete(`/admin/users/${userId}`);
+    },
+    async createRole(payload: {
+      name: string;
+      description?: string | null;
+      permission_ids?: number[];
+      permission_codes?: string[];
+    }): Promise<Role> {
+      const { data } = await client.post<{ role: Role }>('/admin/roles', payload);
+      return data.role;
+    },
+    async updateRole(roleId: number, payload: Record<string, unknown>): Promise<Role> {
+      const { data } = await client.patch<{ role: Role }>(`/admin/roles/${roleId}`, payload);
+      return data.role;
+    },
+    async deleteRole(roleId: number): Promise<void> {
+      await client.delete(`/admin/roles/${roleId}`);
     },
   },
   shares: {

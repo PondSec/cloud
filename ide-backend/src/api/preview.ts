@@ -29,14 +29,22 @@ async function forwardPreview(req: Request, res: Response, pathSuffix: string): 
       }
     }
 
+    const headers: Record<string, string> = {
+      accept: req.headers.accept ?? '*/*',
+    };
+    const hostHeader = req.headers.host;
+    if (typeof hostHeader === 'string') {
+      headers.host = hostHeader;
+    }
+    const userAgent = req.headers['user-agent'];
+    if (typeof userAgent === 'string') {
+      headers['user-agent'] = userAgent;
+    }
+
     const upstream = await fetch(target.toString(), {
       method: req.method,
-      headers: {
-        accept: req.headers.accept ?? '*/*',
-      },
-      body: ['GET', 'HEAD'].includes(req.method) ? undefined : (req as any),
-      duplex: ['GET', 'HEAD'].includes(req.method) ? undefined : 'half',
-    } as RequestInit);
+      headers,
+    });
 
     res.status(upstream.status);
     upstream.headers.forEach((value, key) => {

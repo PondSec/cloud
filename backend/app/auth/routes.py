@@ -18,7 +18,10 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 def _token_response(user: User) -> dict[str, Any]:
-    claims = {"roles": [role.name for role in user.roles]}
+    claims = {
+        "roles": [role.name for role in user.roles],
+        "permissions": sorted({permission.code for role in user.roles for permission in role.permissions}),
+    }
     access_token = create_access_token(identity=str(user.id), additional_claims=claims)
     refresh_token = create_refresh_token(identity=str(user.id), additional_claims=claims)
     return {
@@ -142,6 +145,9 @@ def refresh():
 
     access_token = create_access_token(
         identity=str(user.id),
-        additional_claims={"roles": [role.name for role in user.roles]},
+        additional_claims={
+            "roles": [role.name for role in user.roles],
+            "permissions": sorted({permission.code for role in user.roles for permission in role.permissions}),
+        },
     )
     return jsonify({"access_token": access_token})

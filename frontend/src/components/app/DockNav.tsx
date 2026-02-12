@@ -1,5 +1,6 @@
 import {
   Code2,
+  Image,
   FolderOpen,
   History,
   Search,
@@ -7,11 +8,12 @@ import {
   Share2,
   Shield,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import Dock from '@/components/reactbits/Dock';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { hasAnyPermission, hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 export function DockNav() {
   const navigate = useNavigate();
@@ -19,17 +21,27 @@ export function DockNav() {
   const { data: user } = useCurrentUser();
 
   const items = useMemo(() => {
-    const base = [
-      { label: 'Files', path: '/app/files', icon: <FolderOpen size={18} /> },
-      { label: 'Recents', path: '/app/recents', icon: <History size={18} /> },
-      { label: 'Shared', path: '/app/shared', icon: <Share2 size={18} /> },
-      { label: 'Search', path: '/app/search', icon: <Search size={18} /> },
-      { label: 'Settings', path: '/app/settings', icon: <Settings size={18} /> },
-      { label: 'IDE', path: '/dev/workspaces', icon: <Code2 size={18} /> },
-    ];
+    const base: Array<{ label: string; path: string; icon: ReactNode }> = [];
 
-    const isAdmin = user?.roles.some((role) => role.name === 'admin');
-    if (isAdmin) {
+    if (hasPermission(user, PERMISSIONS.FILE_READ)) {
+      base.push({ label: 'Files', path: '/app/files', icon: <FolderOpen size={18} /> });
+      base.push({ label: 'Recents', path: '/app/recents', icon: <History size={18} /> });
+      base.push({ label: 'Search', path: '/app/search', icon: <Search size={18} /> });
+    }
+    if (hasPermission(user, PERMISSIONS.SHARE_VIEW_RECEIVED)) {
+      base.push({ label: 'Shared', path: '/app/shared', icon: <Share2 size={18} /> });
+    }
+    if (hasPermission(user, PERMISSIONS.FILE_READ) && hasPermission(user, PERMISSIONS.MEDIA_VIEW)) {
+      base.push({ label: 'Media', path: '/app/media', icon: <Image size={18} /> });
+    }
+
+    base.push({ label: 'Settings', path: '/app/settings', icon: <Settings size={18} /> });
+
+    if (hasPermission(user, PERMISSIONS.IDE_USE)) {
+      base.push({ label: 'IDE', path: '/dev/workspaces', icon: <Code2 size={18} /> });
+    }
+
+    if (hasAnyPermission(user, [PERMISSIONS.USER_MANAGE, PERMISSIONS.ROLE_MANAGE, PERMISSIONS.SERVER_SETTINGS])) {
       base.push({ label: 'Admin', path: '/app/admin', icon: <Shield size={18} /> });
     }
 
@@ -45,7 +57,7 @@ export function DockNav() {
             : '',
       onClick: () => navigate(item.path),
     }));
-  }, [location.pathname, navigate, user?.roles]);
+  }, [location.pathname, navigate, user]);
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-1 z-50 flex justify-center">

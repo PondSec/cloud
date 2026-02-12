@@ -3,12 +3,15 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { requireAuth } from '../auth/middleware.js';
-import { createWorkspaceForUser, listUserWorkspaces, readWorkspaceSettings, removeWorkspace, requireWorkspace, writeWorkspaceSettings, } from '../workspace/service.js';
+import { createWorkspaceForUser, listUserWorkspaces, readWorkspaceSettings, renameWorkspaceForUser, removeWorkspace, requireWorkspace, writeWorkspaceSettings, } from '../workspace/service.js';
 import { ensureWorkspaceContainer, runnerStatus, stopWorkspaceContainer } from '../services/runner-client.js';
 import { HttpError } from '../utils/http-error.js';
 const createSchema = z.object({
     name: z.string().min(2).max(120),
     template: z.enum(['python', 'node-ts', 'c', 'web']).default('web'),
+});
+const renameSchema = z.object({
+    name: z.string().min(2).max(120),
 });
 const settingsSchema = z.object({
     env: z.record(z.string()).default({}),
@@ -65,6 +68,19 @@ workspaceRouter.get('/:workspaceId', async (req, res, next) => {
         const settings = readWorkspaceSettings(workspace.id);
         const runtime = await runnerStatus(workspace.id).catch(() => ({ running: false, containerName: '' }));
         res.json({ workspace, settings, runtime });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+workspaceRouter.patch('/:workspaceId', (req, res, next) => {
+    try {
+        const parsed = renameSchema.safeParse(req.body);
+        if (!parsed.success) {
+            throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Invalid payload');
+        }
+        const workspace = renameWorkspaceForUser(req.params.workspaceId, req.auth.userId, parsed.data.name);
+        res.json({ workspace });
     }
     catch (error) {
         next(error);

@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { FolderOpen, Pencil, Play, Plus, Square, Trash2 } from 'lucide-react';
 
 import { ideApi } from '../lib/ide-api';
 import { clearIdeToken } from '../lib/ide-auth';
 import type { Workspace } from '../lib/ide-types';
+
+type RuntimeState = Record<string, { running: boolean; loading: boolean }>;
 
 export function WorkspacesPage() {
   const navigate = useNavigate();
@@ -11,12 +14,19 @@ export function WorkspacesPage() {
   const [name, setName] = useState('my-workspace');
   const [template, setTemplate] = useState('node-ts');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [runtime, setRuntime] = useState<RuntimeState>({});
 
   async function refresh(): Promise<void> {
     try {
       const list = await ideApi.workspace.list();
       setWorkspaces(list);
       setError('');
+      for (const workspace of list.slice(0, 24)) {
+        if (!runtime[workspace.id]) {
+          void refreshRuntime(workspace.id);
+        }
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load workspaces');
       if (err.response?.status === 401) {
@@ -26,18 +36,45 @@ export function WorkspacesPage() {
     }
   }
 
+  async function refreshRuntime(workspaceId: string): Promise<void> {
+    setRuntime((prev) => ({ ...prev, [workspaceId]: { running: prev[workspaceId]?.running ?? false, loading: true } }));
+    try {
+      const details = await ideApi.workspace.details(workspaceId);
+      setRuntime((prev) => ({ ...prev, [workspaceId]: { running: details.runtime.running, loading: false } }));
+    } catch {
+      setRuntime((prev) => ({ ...prev, [workspaceId]: { running: false, loading: false } }));
+    }
+  }
+
   useEffect(() => {
     void refresh();
   }, []);
 
+  const sorted = useMemo(
+    () => [...workspaces].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    [workspaces],
+  );
+
   return (
     <div className="ide-root">
       <main className="workspace-page">
-        <section className="card">
-          <h2 style={{ marginTop: 0 }}>Workspaces</h2>
+        <section className="card ide-workspaces-card">
+          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
+            <h2 style={{ margin: 0 }}>Workspace Hub</h2>
+            <Link to="/app/files" className="btn">
+              Zur Cloud
+            </Link>
+          </div>
+          <p style={{ color: '#a9a9a9', marginTop: 0 }}>Erstellen, starten, umbenennen, löschen und öffnen.</p>
 
-          <div className="row" style={{ marginBottom: 8 }}>
-            <input className="input" value={name} onChange={(event) => setName(event.target.value)} style={{ flex: 1 }} />
+          <div className="row" style={{ marginBottom: 12 }}>
+            <input
+              className="input"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Workspace Name"
+              style={{ flex: 1 }}
+            />
             <select className="select" value={template} onChange={(event) => setTemplate(event.target.value)}>
               <option value="node-ts">Node / TS</option>
               <option value="python">Python</option>
@@ -46,43 +83,110 @@ export function WorkspacesPage() {
             </select>
             <button
               className="btn primary"
+              disabled={busy}
               onClick={async () => {
+                if (!name.trim()) return;
+                setBusy(true);
                 try {
-                  const workspace = await ideApi.workspace.create(name, template);
+                  const workspace = await ideApi.workspace.create(name.trim(), template);
+                  setName('my-workspace');
                   await refresh();
                   navigate(`/dev/ide/${workspace.id}`);
                 } catch (err: any) {
                   setError(err.response?.data?.error || 'Failed to create workspace');
+                } finally {
+                  setBusy(false);
                 }
               }}
             >
-              Create
+              <Plus size={14} /> Create
             </button>
           </div>
 
-          <div className="workspace-list">
-            {workspaces.map((workspace) => (
-              <button className="workspace-item" key={workspace.id} onClick={() => navigate(`/dev/ide/${workspace.id}`)}>
-                <div style={{ fontWeight: 600 }}>{workspace.name}</div>
-                <div style={{ color: '#a9a9a9', fontSize: 12 }}>
-                  {workspace.template} · {new Date(workspace.updatedAt).toLocaleString()}
-                </div>
-              </button>
-            ))}
+          <div className="workspace-list ide-workspace-grid">
+            {sorted.map((workspace) => {
+              const runtimeInfo = runtime[workspace.id];
+              const running = runtimeInfo?.running ?? false;
+              const runtimeLoading = runtimeInfo?.loading ?? false;
+              return (
+                <article key={workspace.id} className="workspace-item ide-workspace-item">
+                  <div className="row" style={{ justifyContent: 'space-between' }}>
+                    <div style={{ fontWeight: 700 }}>{workspace.name}</div>
+                    <span className={`ide-badge ${running ? 'ide-badge-running' : 'ide-badge-stopped'}`}>
+                      {runtimeLoading ? 'checking...' : running ? 'running' : 'stopped'}
+                    </span>
+                  </div>
+                  <div style={{ color: '#a9a9a9', fontSize: 12, marginBottom: 8 }}>
+                    {workspace.template} · {new Date(workspace.updatedAt).toLocaleString()}
+                  </div>
+                  <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                    <button className="btn" onClick={() => navigate(`/dev/ide/${workspace.id}`)}>
+                      <FolderOpen size={13} /> Open
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={async () => {
+                        const next = window.prompt('New workspace name', workspace.name);
+                        if (!next || next === workspace.name) return;
+                        try {
+                          await ideApi.workspace.rename(workspace.id, next.trim());
+                          await refresh();
+                        } catch (err: any) {
+                          setError(err.response?.data?.error || 'Rename failed');
+                        }
+                      }}
+                    >
+                      <Pencil size={13} /> Rename
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={async () => {
+                        try {
+                          if (running) {
+                            await ideApi.workspace.stop(workspace.id);
+                          } else {
+                            await ideApi.workspace.start(workspace.id);
+                          }
+                          await refreshRuntime(workspace.id);
+                        } catch (err: any) {
+                          setError(err.response?.data?.error || (running ? 'Stop failed' : 'Start failed'));
+                        }
+                      }}
+                    >
+                      {running ? <Square size={13} /> : <Play size={13} />} {running ? 'Stop' : 'Start'}
+                    </button>
+                    <button
+                      className="btn danger"
+                      onClick={async () => {
+                        if (!window.confirm(`Workspace '${workspace.name}' wirklich löschen?`)) return;
+                        try {
+                          await ideApi.workspace.delete(workspace.id);
+                          await refresh();
+                        } catch (err: any) {
+                          setError(err.response?.data?.error || 'Delete failed');
+                        }
+                      }}
+                    >
+                      <Trash2 size={13} /> Delete
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
 
-          <div className="row" style={{ marginTop: 8 }}>
+          <div className="row" style={{ marginTop: 10 }}>
+            <button className="btn" onClick={() => void refresh()}>
+              Refresh
+            </button>
             <button
               className="btn"
               onClick={() => {
                 clearIdeToken();
-                navigate('/dev/workspaces', { replace: true });
+                void refresh();
               }}
             >
               Reset IDE Session
-            </button>
-            <button className="btn" onClick={() => void refresh()}>
-              Refresh
             </button>
           </div>
 

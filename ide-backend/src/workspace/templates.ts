@@ -11,12 +11,12 @@ export function templateDefaults(template: string): WorkspaceSettings {
       return {
         env: {},
         commands: {
-          run: 'python main.py',
-          test: 'python -m pytest -q',
+          run: 'python3 main.py',
+          test: 'python3 -m pytest -q',
           build: '',
-          preview: '',
+          preview: 'python3 -m http.server 3000',
         },
-        previewPort: 0,
+        previewPort: 3000,
         languageServers: { typescript: false, python: true, c: false },
         allowEgress: true,
       };
@@ -51,10 +51,10 @@ export function templateDefaults(template: string): WorkspaceSettings {
       return {
         env: {},
         commands: {
-          run: 'python -m http.server 3000',
+          run: 'python3 -m http.server 3000',
           build: '',
           test: '',
-          preview: 'python -m http.server 3000',
+          preview: 'python3 -m http.server 3000',
         },
         previewPort: 3000,
         languageServers: { typescript: true, python: false, c: false },
@@ -70,7 +70,7 @@ export async function scaffoldTemplate(rootDir: string, template: string): Promi
     case 'python':
       await writeFiles(rootDir, {
         'main.py': 'print("Hello from Cloud IDE Python template")\n',
-        'README.md': '# Python Workspace\n\nRun with `python main.py`.\n',
+        'README.md': '# Python Workspace\n\nRun with `python3 main.py`.\n',
         '.cloudide.json': JSON.stringify(templateDefaults('python'), null, 2),
       });
       return;

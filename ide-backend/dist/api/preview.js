@@ -21,13 +21,20 @@ async function forwardPreview(req, res, pathSuffix) {
                 target.searchParams.set(key, value);
             }
         }
+        const headers = {
+            accept: req.headers.accept ?? '*/*',
+        };
+        const hostHeader = req.headers.host;
+        if (typeof hostHeader === 'string') {
+            headers.host = hostHeader;
+        }
+        const userAgent = req.headers['user-agent'];
+        if (typeof userAgent === 'string') {
+            headers['user-agent'] = userAgent;
+        }
         const upstream = await fetch(target.toString(), {
             method: req.method,
-            headers: {
-                accept: req.headers.accept ?? '*/*',
-            },
-            body: ['GET', 'HEAD'].includes(req.method) ? undefined : req,
-            duplex: ['GET', 'HEAD'].includes(req.method) ? undefined : 'half',
+            headers,
         });
         res.status(upstream.status);
         upstream.headers.forEach((value, key) => {

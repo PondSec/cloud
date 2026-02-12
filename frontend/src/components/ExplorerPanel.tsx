@@ -1,4 +1,4 @@
-import { FolderPlus, FilePlus, RefreshCw, Save } from 'lucide-react';
+import { FolderPlus, FilePlus, Pencil, RefreshCw, Save, Trash2, ArrowRightLeft } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import type { FileNode } from '../lib/ide-types';
@@ -11,6 +11,9 @@ interface ExplorerPanelProps {
   onCreateFile: (relativePath: string) => void;
   onCreateFolder: (relativePath: string) => void;
   onSaveActive: () => void;
+  onRenamePath: (path: string) => void;
+  onMovePath: (path: string) => void;
+  onDeletePath: (path: string) => void;
 }
 
 export function ExplorerPanel({
@@ -21,6 +24,9 @@ export function ExplorerPanel({
   onCreateFile,
   onCreateFolder,
   onSaveActive,
+  onRenamePath,
+  onMovePath,
+  onDeletePath,
 }: ExplorerPanelProps) {
   const [newName, setNewName] = useState('');
 
@@ -100,6 +106,35 @@ export function ExplorerPanel({
           >
             {node.type === 'directory' ? `📁 ${node.name}` : `📄 ${node.name}`}
           </button>
+          <div className="row">
+            <button
+              type="button"
+              className="btn"
+              aria-label={`Rename ${node.name}`}
+              title={`Rename ${node.name}`}
+              onClick={() => onRenamePath(node.path)}
+            >
+              <Pencil size={12} />
+            </button>
+            <button
+              type="button"
+              className="btn"
+              aria-label={`Move ${node.name}`}
+              title={`Move ${node.name}`}
+              onClick={() => onMovePath(node.path)}
+            >
+              <ArrowRightLeft size={12} />
+            </button>
+            <button
+              type="button"
+              className="btn"
+              aria-label={`Delete ${node.name}`}
+              title={`Delete ${node.name}`}
+              onClick={() => onDeletePath(node.path)}
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
         </div>
       ))}
     </div>

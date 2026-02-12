@@ -1,0 +1,98 @@
+.tilted-card-figure {
+  position: relative;
+  perspective: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 16px;
+  outline: none;
+}
+
+.tilted-card-figure:focus-visible {
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.5);
+}
+
+.tilted-card-mobile-alert {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  right: 0.75rem;
+  z-index: 4;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 0.35rem 0.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #d4d4d8;
+}
+
+.tilted-card-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #040915;
+  box-shadow:
+    0 16px 36px rgba(1, 4, 14, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.tilted-card-media {
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 15px;
+  will-change: transform;
+  transform: translateZ(0);
+  background: #040915;
+}
+
+.tilted-card-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: #95a3bf;
+  background: linear-gradient(145deg, rgba(8, 17, 39, 0.95), rgba(3, 6, 17, 0.9));
+  letter-spacing: 0.08em;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 15px;
+}
+
+.tilted-card-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+  transform: translateZ(30px);
+  background: linear-gradient(180deg, rgba(3, 6, 15, 0.05) 25%, rgba(3, 6, 15, 0.75) 100%);
+}
+
+.tilted-card-caption {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 999px;
+  background-color: rgba(239, 246, 255, 0.95);
+  border: 1px solid rgba(125, 211, 252, 0.6);
+  padding: 0.24rem 0.55rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  color: #0f172a;
+  opacity: 0;
+  z-index: 3;
+}
+
+@media (max-width: 640px) {
+  .tilted-card-caption {
+    display: none;
+  }
+}

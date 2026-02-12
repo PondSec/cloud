@@ -33,6 +33,9 @@ interface IdeState {
   setActiveFile: (path: string | null) => void;
   updateOpenFileContent: (path: string, content: string) => void;
   markClean: (path: string) => void;
+  renameOpenFilePath: (fromPath: string, toPath: string) => void;
+  renameOpenFilesByPrefix: (fromPrefix: string, toPrefix: string) => void;
+  removeOpenFilesByPrefix: (prefix: string) => void;
   appendOutput: (line: string) => void;
   clearOutput: () => void;
   setProblems: (items: string[]) => void;
@@ -55,7 +58,7 @@ export const useIdeStore = create<IdeState>((set, get) => ({
   gitStatusRaw: '',
   bottomPanel: 'terminal',
   previewVisible: true,
-  previewPort: 3000,
+  previewPort: 0,
 
   setUserToken: (token) => set({ userToken: token }),
   setWorkspace: (workspace, settings) =>
@@ -69,7 +72,7 @@ export const useIdeStore = create<IdeState>((set, get) => ({
       outputLines: [],
       problems: [],
       gitStatusRaw: '',
-      previewPort: settings?.previewPort || 3000,
+      previewPort: settings?.previewPort ?? 0,
     }),
   setExplorerPath: (explorerPath) => set({ explorerPath }),
   setFiles: (files) => set({ files }),
@@ -100,6 +103,43 @@ export const useIdeStore = create<IdeState>((set, get) => ({
     set((state) => ({
       openFiles: state.openFiles.map((item) => (item.path === path ? { ...item, dirty: false } : item)),
     })),
+  renameOpenFilePath: (fromPath, toPath) =>
+    set((state) => ({
+      openFiles: state.openFiles.map((item) => (item.path === fromPath ? { ...item, path: toPath } : item)),
+      activeFilePath: state.activeFilePath === fromPath ? toPath : state.activeFilePath,
+    })),
+  renameOpenFilesByPrefix: (fromPrefix, toPrefix) =>
+    set((state) => {
+      const normalized = fromPrefix.endsWith('/') ? fromPrefix : `${fromPrefix}/`;
+      const next = state.openFiles.map((item) => {
+        if (item.path === fromPrefix) {
+          return { ...item, path: toPrefix };
+        }
+        if (item.path.startsWith(normalized)) {
+          const rest = item.path.slice(normalized.length);
+          return { ...item, path: `${toPrefix}/${rest}` };
+        }
+        return item;
+      });
+      let nextActive = state.activeFilePath;
+      if (nextActive === fromPrefix) {
+        nextActive = toPrefix;
+      } else if (nextActive && nextActive.startsWith(normalized)) {
+        const rest = nextActive.slice(normalized.length);
+        nextActive = `${toPrefix}/${rest}`;
+      }
+      return { openFiles: next, activeFilePath: nextActive };
+    }),
+  removeOpenFilesByPrefix: (prefix) =>
+    set((state) => {
+      const normalized = prefix.endsWith('/') ? prefix : `${prefix}/`;
+      const next = state.openFiles.filter((item) => item.path !== prefix && !item.path.startsWith(normalized));
+      const activeStillThere = next.some((item) => item.path === state.activeFilePath);
+      return {
+        openFiles: next,
+        activeFilePath: activeStillThere ? state.activeFilePath : next.at(-1)?.path ?? null,
+      };
+    }),
   appendOutput: (line) => set((state) => ({ outputLines: [...state.outputLines, line] })),
   clearOutput: () => set({ outputLines: [] }),
   setProblems: (problems) => set({ problems }),

@@ -55,6 +55,15 @@ export const ideApi = {
       const { data } = await ideClient.post<{ workspace: Workspace }>('/workspaces', { name, template });
       return data.workspace;
     },
+    async rename(workspaceId: string, name: string): Promise<Workspace> {
+      const { data } = await ideClient.patch<{ workspace: Workspace }>(`/workspaces/${encodeURIComponent(workspaceId)}`, {
+        name,
+      });
+      return data.workspace;
+    },
+    async delete(workspaceId: string): Promise<void> {
+      await ideClient.delete(`/workspaces/${encodeURIComponent(workspaceId)}`);
+    },
     async details(workspaceId: string): Promise<{ workspace: Workspace; settings: WorkspaceSettings; runtime: WorkspaceRuntime }> {
       const { data } = await ideClient.get<{ workspace: Workspace; settings: WorkspaceSettings; runtime: WorkspaceRuntime }>(
         `/workspaces/${encodeURIComponent(workspaceId)}`,

@@ -81,11 +81,26 @@ export async function handleWsUpgrade(req: IncomingMessage, socket: any, head: B
 
 function proxyWs(clientWs: WebSocket, target: string): void {
   const upstream = new WebSocket(target);
+  const pendingClientMessages: Array<{ data: Parameters<WebSocket['send']>[0]; isBinary: boolean }> = [];
 
   clientWs.on('message', (data, isBinary) => {
     if (upstream.readyState === WebSocket.OPEN) {
       upstream.send(data, { binary: isBinary });
+      return;
     }
+    if (upstream.readyState === WebSocket.CONNECTING) {
+      pendingClientMessages.push({ data, isBinary });
+    }
+  });
+
+  upstream.on('open', () => {
+    for (const frame of pendingClientMessages) {
+      if (upstream.readyState !== WebSocket.OPEN) {
+        break;
+      }
+      upstream.send(frame.data, { binary: frame.isBinary });
+    }
+    pendingClientMessages.length = 0;
   });
 
   upstream.on('message', (data, isBinary) => {

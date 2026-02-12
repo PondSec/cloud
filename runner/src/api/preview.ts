@@ -17,14 +17,18 @@ async function proxyToContainer(req: any, res: any, workspaceId: string, port: s
     }
   }
 
+  const headers: Record<string, string> = {
+    accept: req.headers.accept ?? '*/*',
+  };
+  const userAgent = req.headers['user-agent'];
+  if (typeof userAgent === 'string') {
+    headers['user-agent'] = userAgent;
+  }
+
   const upstream = await fetch(target.toString(), {
     method: req.method,
-    headers: {
-      accept: req.headers.accept ?? '*/*',
-    },
-    body: ['GET', 'HEAD'].includes(req.method) ? undefined : req,
-    duplex: ['GET', 'HEAD'].includes(req.method) ? undefined : 'half',
-  } as RequestInit);
+    headers,
+  });
 
   res.status(upstream.status);
   upstream.headers.forEach((value, key) => {

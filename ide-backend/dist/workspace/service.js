@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { v4 as uuidv4 } from 'uuid';
-import { createWorkspace, deleteWorkspace, findWorkspace, getWorkspaceSettings, listWorkspaces, setWorkspaceSettings, updateWorkspaceTimestamp, } from '../db.js';
+import { createWorkspace, deleteWorkspace, findWorkspace, getWorkspaceSettings, listWorkspaces, renameWorkspace, setWorkspaceSettings, updateWorkspaceTimestamp, } from '../db.js';
 import { config } from '../config.js';
 import { HttpError } from '../utils/http-error.js';
 import { scaffoldTemplate, templateDefaults } from './templates.js';
@@ -40,6 +40,11 @@ export async function removeWorkspace(workspaceId, userId) {
     requireWorkspace(workspaceId, userId);
     deleteWorkspace(workspaceId, userId);
     await fs.rm(workspaceRootPath(workspaceId), { recursive: true, force: true });
+}
+export function renameWorkspaceForUser(workspaceId, userId, name) {
+    requireWorkspace(workspaceId, userId);
+    renameWorkspace(workspaceId, userId, name);
+    return requireWorkspace(workspaceId, userId);
 }
 export function readWorkspaceSettings(workspaceId) {
     return getWorkspaceSettings(workspaceId);

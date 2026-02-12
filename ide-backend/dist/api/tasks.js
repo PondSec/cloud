@@ -25,9 +25,13 @@ taskRouter.post('/:workspaceId/tasks/run', async (req, res, next) => {
         if (!command) {
             throw new HttpError(400, `No command configured for task '${parsed.data.task}'`);
         }
+        const normalized = command.replace(/\bpython\b/g, 'python3');
+        const effectiveCommand = parsed.data.task === 'preview'
+            ? `nohup sh -lc ${shellEscape(normalized)} >/tmp/cloudide-preview.log 2>&1 &`
+            : normalized;
         const result = await runnerExec({
             workspaceId: workspace.id,
-            cmd: command,
+            cmd: effectiveCommand,
             env: settings.env,
         });
         res.json(result);
@@ -36,3 +40,6 @@ taskRouter.post('/:workspaceId/tasks/run', async (req, res, next) => {
         next(error);
     }
 });
+function shellEscape(value) {
+    return `'${value.replace(/'/g, `'"'"'`)}'`;
+}

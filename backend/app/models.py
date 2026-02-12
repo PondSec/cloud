@@ -35,7 +35,14 @@ class PermissionCode(str, enum.Enum):
     FILE_READ = "FILE_READ"
     FILE_WRITE = "FILE_WRITE"
     FILE_DELETE = "FILE_DELETE"
+    SHARE_INTERNAL_MANAGE = "SHARE_INTERNAL_MANAGE"
+    SHARE_EXTERNAL_MANAGE = "SHARE_EXTERNAL_MANAGE"
+    SHARE_VIEW_RECEIVED = "SHARE_VIEW_RECEIVED"
+    OFFICE_USE = "OFFICE_USE"
+    IDE_USE = "IDE_USE"
+    MEDIA_VIEW = "MEDIA_VIEW"
     USER_MANAGE = "USER_MANAGE"
+    ROLE_MANAGE = "ROLE_MANAGE"
     SERVER_SETTINGS = "SERVER_SETTINGS"
 
 
@@ -113,6 +120,7 @@ class User(db.Model):
         return False
 
     def to_dict(self) -> dict[str, Any]:
+        permission_codes = sorted({permission.code for role in self.roles for permission in role.permissions})
         return {
             "id": self.id,
             "username": self.username,
@@ -120,6 +128,7 @@ class User(db.Model):
             "bytes_limit": self.bytes_limit,
             "bytes_used": self.bytes_used,
             "roles": [role.to_dict() for role in self.roles],
+            "permissions": permission_codes,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }

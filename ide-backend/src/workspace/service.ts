@@ -9,6 +9,7 @@ import {
   findWorkspace,
   getWorkspaceSettings,
   listWorkspaces,
+  renameWorkspace,
   setWorkspaceSettings,
   updateWorkspaceTimestamp,
 } from '../db.js';
@@ -63,6 +64,12 @@ export async function removeWorkspace(workspaceId: string, userId: string): Prom
   requireWorkspace(workspaceId, userId);
   deleteWorkspace(workspaceId, userId);
   await fs.rm(workspaceRootPath(workspaceId), { recursive: true, force: true });
+}
+
+export function renameWorkspaceForUser(workspaceId: string, userId: string, name: string): WorkspaceRecord {
+  requireWorkspace(workspaceId, userId);
+  renameWorkspace(workspaceId, userId, name);
+  return requireWorkspace(workspaceId, userId);
 }
 
 export function readWorkspaceSettings(workspaceId: string): WorkspaceSettings {

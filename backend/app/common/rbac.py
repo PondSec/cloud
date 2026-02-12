@@ -4,6 +4,7 @@ from functools import wraps
 from typing import Any, Callable
 
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+from sqlalchemy import false
 
 from ..extensions import db
 from ..models import FileNode, InternalShare, PermissionCode, ShareAccessLevel, User
@@ -53,6 +54,15 @@ def admin_required(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+def permission_for_node_action(action: str) -> PermissionCode | None:
+    permission_map = {
+        "read": PermissionCode.FILE_READ,
+        "write": PermissionCode.FILE_WRITE,
+        "delete": PermissionCode.FILE_DELETE,
+    }
+    return permission_map.get(action)
+
+
 def _shared_access_level(user: User, node: FileNode) -> ShareAccessLevel | None:
     ancestor_ids: list[int] = []
     cursor: FileNode | None = node
@@ -92,23 +102,22 @@ def has_shared_access(user: User, node: FileNode, action: str) -> bool:
 
 
 def can_manage_node(user: User, node: FileNode, action: str) -> bool:
+    required_permission = permission_for_node_action(action)
+    if required_permission and not user.has_permission(required_permission.value):
+        return False
+
     if node.owner_id == user.id:
         return True
 
-    permission_map = {
-        "read": PermissionCode.FILE_READ,
-        "write": PermissionCode.FILE_WRITE,
-        "delete": PermissionCode.FILE_DELETE,
-    }
     if user.is_admin:
-        permission = permission_map.get(action)
-        if permission and user.has_permission(permission.value):
-            return True
+        return True
 
     return has_shared_access(user, node, action)
 
 
 def scope_query_to_user(query: Any, user: User):
+    if not user.has_permission(PermissionCode.FILE_READ.value):
+        return query.filter(false())
     if user.is_admin and user.has_permission(PermissionCode.FILE_READ.value):
         return query
     return query.filter(FileNode.owner_id == user.id)

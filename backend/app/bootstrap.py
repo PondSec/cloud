@@ -26,11 +26,18 @@ def ensure_roles_and_permissions() -> None:
     if user_role is None:
         user_role = Role(name="user", description="Standard workspace user")
         db.session.add(user_role)
-    user_role.permissions = [
-        permission_map[PermissionCode.FILE_READ.value],
-        permission_map[PermissionCode.FILE_WRITE.value],
-        permission_map[PermissionCode.FILE_DELETE.value],
+    default_user_permissions = [
+        PermissionCode.FILE_READ,
+        PermissionCode.FILE_WRITE,
+        PermissionCode.FILE_DELETE,
+        PermissionCode.SHARE_INTERNAL_MANAGE,
+        PermissionCode.SHARE_EXTERNAL_MANAGE,
+        PermissionCode.SHARE_VIEW_RECEIVED,
+        PermissionCode.OFFICE_USE,
+        PermissionCode.IDE_USE,
+        PermissionCode.MEDIA_VIEW,
     ]
+    user_role.permissions = [permission_map[code.value] for code in default_user_permissions]
 
 
 def ensure_settings() -> AppSettings:

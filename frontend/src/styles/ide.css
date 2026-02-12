@@ -251,10 +251,19 @@
 }
 
 .ide-root .file-entry button {
+  cursor: pointer;
+}
+
+.ide-root .file-entry > button:first-child {
   border: none;
   background: transparent;
   color: inherit;
-  cursor: pointer;
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ide-root .command-palette-overlay {
@@ -307,10 +316,22 @@
   padding: 16px;
 }
 
+.ide-root .ide-workspaces-card {
+  width: min(1200px, 96vw);
+}
+
 .ide-root .workspace-list {
   max-height: 320px;
   overflow: auto;
   border: 1px solid var(--border);
+}
+
+.ide-root .ide-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 10px;
+  max-height: 55vh;
+  padding: 8px;
 }
 
 .ide-root .workspace-item {
@@ -326,6 +347,30 @@
 
 .ide-root .workspace-item:hover {
   background: #2e2e2e;
+}
+
+.ide-root .ide-workspace-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.ide-root .ide-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+}
+
+.ide-root .ide-badge-running {
+  background: rgba(35, 167, 88, 0.2);
+  color: #7defa7;
+}
+
+.ide-root .ide-badge-stopped {
+  background: rgba(180, 180, 180, 0.12);
+  color: #c9c9c9;
 }
 
 .ide-root .diff-view {

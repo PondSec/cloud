@@ -85,6 +85,9 @@ export function findWorkspace(workspaceId, userId) {
 export function deleteWorkspace(workspaceId, userId) {
     db.prepare(`DELETE FROM workspaces WHERE id = ? AND user_id = ?`).run(workspaceId, userId);
 }
+export function renameWorkspace(workspaceId, userId, name) {
+    db.prepare(`UPDATE workspaces SET name = ?, updated_at = ? WHERE id = ? AND user_id = ?`).run(name, new Date().toISOString(), workspaceId, userId);
+}
 export function updateWorkspaceTimestamp(workspaceId) {
     db.prepare(`UPDATE workspaces SET updated_at = ? WHERE id = ?`).run(new Date().toISOString(), workspaceId);
 }

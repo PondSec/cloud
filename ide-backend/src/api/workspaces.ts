@@ -8,6 +8,7 @@ import {
   createWorkspaceForUser,
   listUserWorkspaces,
   readWorkspaceSettings,
+  renameWorkspaceForUser,
   removeWorkspace,
   requireWorkspace,
   writeWorkspaceSettings,
@@ -18,6 +19,10 @@ import { HttpError } from '../utils/http-error.js';
 const createSchema = z.object({
   name: z.string().min(2).max(120),
   template: z.enum(['python', 'node-ts', 'c', 'web']).default('web'),
+});
+
+const renameSchema = z.object({
+  name: z.string().min(2).max(120),
 });
 
 const settingsSchema = z.object({
@@ -81,6 +86,19 @@ workspaceRouter.get('/:workspaceId', async (req, res, next) => {
     const settings = readWorkspaceSettings(workspace.id);
     const runtime = await runnerStatus(workspace.id).catch(() => ({ running: false, containerName: '' }));
     res.json({ workspace, settings, runtime });
+  } catch (error) {
+    next(error);
+  }
+});
+
+workspaceRouter.patch('/:workspaceId', (req, res, next) => {
+  try {
+    const parsed = renameSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw new HttpError(400, parsed.error.issues[0]?.message ?? 'Invalid payload');
+    }
+    const workspace = renameWorkspaceForUser(req.params.workspaceId, req.auth!.userId, parsed.data.name);
+    res.json({ workspace });
   } catch (error) {
     next(error);
   }

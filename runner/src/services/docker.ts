@@ -4,6 +4,8 @@ import path from 'node:path';
 import { config } from '../config.js';
 import { runCommand } from '../utils/process.js';
 
+const startLocks = new Map<string, Promise<{ containerName: string; started: boolean }>>();
+
 export function workspaceContainerName(workspaceId: string): string {
   return `cloudide-ws-${workspaceId.replace(/[^a-zA-Z0-9_.-]/g, '-')}`;
 }
@@ -63,13 +65,25 @@ export async function ensureWorkspaceDirectory(workspaceId: string): Promise<voi
 export async function containerRunning(workspaceId: string): Promise<boolean> {
   const containerName = workspaceContainerName(workspaceId);
   const result = await runCommand(['inspect', '-f', '{{.State.Running}}', containerName]);
-  return result.exitCode === 0 && result.stdout.trim() === 'true';
+  if (result.exitCode === 0) {
+    return result.stdout.trim() === 'true';
+  }
+  if (isNoSuchContainer(result.stderr) || isNoSuchContainer(result.stdout)) {
+    return false;
+  }
+  throw new Error(result.stderr || result.stdout || 'Failed to inspect workspace container');
 }
 
 export async function containerExists(workspaceId: string): Promise<boolean> {
   const containerName = workspaceContainerName(workspaceId);
   const result = await runCommand(['inspect', containerName]);
-  return result.exitCode === 0;
+  if (result.exitCode === 0) {
+    return true;
+  }
+  if (isNoSuchContainer(result.stderr) || isNoSuchContainer(result.stdout)) {
+    return false;
+  }
+  throw new Error(result.stderr || result.stdout || 'Failed to inspect workspace container');
 }
 
 export async function startContainer(args: {
@@ -78,9 +92,35 @@ export async function startContainer(args: {
   volumeName?: string;
   cpuLimit?: string;
   memLimit?: string;
-    pidsLimit?: number;
-    allowEgress?: boolean;
-    workspaceNetwork?: string;
+  pidsLimit?: number;
+  allowEgress?: boolean;
+  workspaceNetwork?: string;
+}): Promise<{ containerName: string; started: boolean }> {
+  const inFlight = startLocks.get(args.workspaceId);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const request = startContainerInternal(args);
+  startLocks.set(args.workspaceId, request);
+  try {
+    return await request;
+  } finally {
+    if (startLocks.get(args.workspaceId) === request) {
+      startLocks.delete(args.workspaceId);
+    }
+  }
+}
+
+async function startContainerInternal(args: {
+  workspaceId: string;
+  image?: string;
+  volumeName?: string;
+  cpuLimit?: string;
+  memLimit?: string;
+  pidsLimit?: number;
+  allowEgress?: boolean;
+  workspaceNetwork?: string;
 }): Promise<{ containerName: string; started: boolean }> {
   await ensureWorkspaceDirectory(args.workspaceId);
 
@@ -110,6 +150,18 @@ export async function startContainer(args: {
 
   const started = await runCommand(runArgs);
   if (started.exitCode !== 0) {
+    const combined = `${started.stderr}\n${started.stdout}`;
+    if (isContainerNameConflict(combined)) {
+      const running = await containerRunning(args.workspaceId);
+      if (running) {
+        return { containerName, started: false };
+      }
+      const resumed = await runCommand(['start', containerName]);
+      if (resumed.exitCode === 0) {
+        return { containerName, started: true };
+      }
+      throw new Error(resumed.stderr || resumed.stdout || started.stderr || started.stdout || 'Failed to recover workspace container');
+    }
     throw new Error(started.stderr || started.stdout || 'Failed to run workspace container');
   }
 
@@ -184,4 +236,12 @@ export async function ensureWorkspaceImageBuilt(): Promise<void> {
 
 function escapeShellPath(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
+function isNoSuchContainer(output: string): boolean {
+  return /No such object|No such container|No such file or directory/i.test(output);
+}
+
+function isContainerNameConflict(output: string): boolean {
+  return /Conflict\.\s+The container name\b/i.test(output) || /is already in use by container/i.test(output);
 }

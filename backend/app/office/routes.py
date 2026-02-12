@@ -15,10 +15,10 @@ from flask_jwt_extended import jwt_required
 
 from ..common.audit import audit
 from ..common.errors import APIError
-from ..common.rbac import can_manage_node, current_user
+from ..common.rbac import can_manage_node, current_user, permission_required
 from ..common.storage import resolve_storage_path
 from ..extensions import db
-from ..models import FileNode, FileNodeType, utc_now
+from ..models import FileNode, FileNodeType, PermissionCode, utc_now
 
 
 office_bp = Blueprint("office", __name__, url_prefix="/office")
@@ -169,6 +169,7 @@ def _write_office_file_data(node: FileNode, data: bytes) -> None:
 
 @office_bp.post("/session")
 @jwt_required()
+@permission_required(PermissionCode.OFFICE_USE)
 def create_session():
     if not current_app.config["ONLYOFFICE_ENABLED"]:
         raise APIError(503, "ONLYOFFICE_DISABLED", "OnlyOffice integration is disabled.")
@@ -308,5 +309,6 @@ def office_callback(file_id: int):
 
 @office_bp.get("/supported")
 @jwt_required()
+@permission_required(PermissionCode.OFFICE_USE)
 def supported_extensions():
     return jsonify({"extensions": sorted(OFFICE_EXTENSIONS.keys())})

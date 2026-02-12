@@ -10,10 +10,10 @@ from sqlalchemy import func
 
 from ..common.audit import audit
 from ..common.errors import APIError
-from ..common.rbac import current_user
+from ..common.rbac import current_user, permission_required
 from ..common.storage import resolve_storage_path
 from ..extensions import db
-from ..models import FileNode, FileNodeType, InternalShare, ShareAccessLevel, ShareLink, User, utc_now
+from ..models import FileNode, FileNodeType, InternalShare, PermissionCode, ShareAccessLevel, ShareLink, User, utc_now
 
 
 shares_bp = Blueprint("shares", __name__, url_prefix="/shares")
@@ -122,6 +122,7 @@ def _folder_share_html(token: str, root: FileNode, parent: FileNode, items: list
 
 @shares_bp.get("/internal")
 @jwt_required()
+@permission_required(PermissionCode.SHARE_INTERNAL_MANAGE)
 def list_internal_shares():
     user = current_user(required=True)
     assert user is not None
@@ -147,6 +148,7 @@ def list_internal_shares():
 
 @shares_bp.post("/internal")
 @jwt_required()
+@permission_required(PermissionCode.SHARE_INTERNAL_MANAGE)
 def create_or_update_internal_share():
     actor = current_user(required=True)
     assert actor is not None
@@ -200,6 +202,7 @@ def create_or_update_internal_share():
 
 @shares_bp.delete("/internal/<int:share_id>")
 @jwt_required()
+@permission_required(PermissionCode.SHARE_INTERNAL_MANAGE)
 def delete_internal_share(share_id: int):
     actor = current_user(required=True)
     assert actor is not None
@@ -225,6 +228,7 @@ def delete_internal_share(share_id: int):
 
 @shares_bp.get("/shared-with-me")
 @jwt_required()
+@permission_required(PermissionCode.SHARE_VIEW_RECEIVED)
 def shared_with_me():
     user = current_user(required=True)
     assert user is not None
@@ -240,6 +244,7 @@ def shared_with_me():
 
 @shares_bp.get("/external")
 @jwt_required()
+@permission_required(PermissionCode.SHARE_EXTERNAL_MANAGE)
 def list_external_links():
     actor = current_user(required=True)
     assert actor is not None
@@ -261,6 +266,7 @@ def list_external_links():
 
 @shares_bp.post("/external")
 @jwt_required()
+@permission_required(PermissionCode.SHARE_EXTERNAL_MANAGE)
 def create_external_link():
     actor = current_user(required=True)
     assert actor is not None
@@ -301,6 +307,7 @@ def create_external_link():
 
 @shares_bp.delete("/external/<int:link_id>")
 @jwt_required()
+@permission_required(PermissionCode.SHARE_EXTERNAL_MANAGE)
 def delete_external_link(link_id: int):
     actor = current_user(required=True)
     assert actor is not None

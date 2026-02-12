@@ -6,6 +6,20 @@ export interface Permission {
   name: string;
 }
 
+export type PermissionCode =
+  | 'FILE_READ'
+  | 'FILE_WRITE'
+  | 'FILE_DELETE'
+  | 'SHARE_INTERNAL_MANAGE'
+  | 'SHARE_EXTERNAL_MANAGE'
+  | 'SHARE_VIEW_RECEIVED'
+  | 'OFFICE_USE'
+  | 'IDE_USE'
+  | 'MEDIA_VIEW'
+  | 'USER_MANAGE'
+  | 'ROLE_MANAGE'
+  | 'SERVER_SETTINGS';
+
 export interface Role {
   id: number;
   name: string;
@@ -20,6 +34,7 @@ export interface User {
   bytes_limit: number;
   bytes_used: number;
   roles: Role[];
+  permissions: string[];
   created_at: string;
   updated_at: string;
 }

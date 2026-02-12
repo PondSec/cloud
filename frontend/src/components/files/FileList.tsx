@@ -1,9 +1,9 @@
-import { File as FileIcon, Folder, Download, Pencil, MoveRight, Trash2, Grid3X3, List } from 'lucide-react';
+import { File as FileIcon, Folder, Download, Pencil, MoveRight, Trash2, Grid3X3, List, Share2 } from 'lucide-react';
 import { useMemo } from 'react';
 
 import { Button } from '@/components/ui/button';
 import type { FileNode } from '@/types/api';
-import { cn, formatBytes, formatDate } from '@/lib/utils';
+import { cn, formatBytes, formatDate, isOnlyOfficeSupportedFileName } from '@/lib/utils';
 
 export type SortKey = 'name' | 'updated_at' | 'size';
 export type SortDirection = 'asc' | 'desc';
@@ -22,6 +22,8 @@ interface FileListProps {
   onMove?: (node: FileNode) => void;
   onDelete?: (node: FileNode) => void;
   onDownload?: (node: FileNode) => void;
+  onShare?: (node: FileNode) => void;
+  onOpenInOffice?: (node: FileNode) => void;
 }
 
 function compareValues(a: FileNode, b: FileNode, key: SortKey): number {
@@ -47,6 +49,8 @@ export function FileList({
   onMove,
   onDelete,
   onDownload,
+  onShare,
+  onOpenInOffice,
 }: FileListProps) {
   const sorted = useMemo(() => {
     const cloned = [...files];
@@ -68,6 +72,11 @@ export function FileList({
           <Download size={15} />
         </Button>
       ) : null}
+      {onOpenInOffice && node.type === 'file' && isOnlyOfficeSupportedFileName(node.name) ? (
+        <Button variant="ghost" size="icon" onClick={() => onOpenInOffice(node)} aria-label={`Open ${node.name} in Office`}>
+          <span className="text-xs font-semibold">O</span>
+        </Button>
+      ) : null}
       {onRename ? (
         <Button variant="ghost" size="icon" onClick={() => onRename(node)} aria-label={`Rename ${node.name}`}>
           <Pencil size={15} />
@@ -76,6 +85,11 @@ export function FileList({
       {onMove ? (
         <Button variant="ghost" size="icon" onClick={() => onMove(node)} aria-label={`Move ${node.name}`}>
           <MoveRight size={15} />
+        </Button>
+      ) : null}
+      {onShare ? (
+        <Button variant="ghost" size="icon" onClick={() => onShare(node)} aria-label={`Share ${node.name}`}>
+          <Share2 size={15} />
         </Button>
       ) : null}
       {onDelete ? (
@@ -181,7 +195,7 @@ export function FileList({
                     </button>
                   </td>
                   <td className="px-3 py-2 text-zinc-300">{formatDate(node.updated_at)}</td>
-                  <td className="px-3 py-2 text-zinc-300">{node.type === 'folder' ? '—' : formatBytes(node.size)}</td>
+                  <td className="px-3 py-2 text-zinc-300">{node.type === 'folder' ? '-' : formatBytes(node.size)}</td>
                   <td className="px-3 py-2">{renderActions(node)}</td>
                 </tr>
               ))}

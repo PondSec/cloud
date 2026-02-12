@@ -6,7 +6,7 @@ from typing import Any, Callable
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 from ..extensions import db
-from ..models import FileNode, PermissionCode, User
+from ..models import FileNode, InternalShare, PermissionCode, ShareAccessLevel, User
 from .errors import APIError
 
 
@@ -53,8 +53,41 @@ def admin_required(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def has_shared_access(_: User, __: FileNode, ___: str) -> bool:
-    # Sharing permissions are intentionally stubbed for MVP extension.
+def _shared_access_level(user: User, node: FileNode) -> ShareAccessLevel | None:
+    ancestor_ids: list[int] = []
+    cursor: FileNode | None = node
+    while cursor is not None:
+        ancestor_ids.append(cursor.id)
+        cursor = cursor.parent
+
+    if not ancestor_ids:
+        return None
+
+    shares = (
+        InternalShare.query.filter(
+            InternalShare.shared_with_user_id == user.id,
+            InternalShare.file_id.in_(ancestor_ids),
+        )
+        .order_by(InternalShare.updated_at.desc())
+        .all()
+    )
+    if not shares:
+        return None
+
+    if any(share.access == ShareAccessLevel.WRITE for share in shares):
+        return ShareAccessLevel.WRITE
+    return ShareAccessLevel.READ
+
+
+def has_shared_access(user: User, node: FileNode, action: str) -> bool:
+    access_level = _shared_access_level(user, node)
+    if access_level is None:
+        return False
+
+    if action == "read":
+        return True
+    if action in {"write", "delete"}:
+        return access_level == ShareAccessLevel.WRITE
     return False
 
 
@@ -67,9 +100,10 @@ def can_manage_node(user: User, node: FileNode, action: str) -> bool:
         "write": PermissionCode.FILE_WRITE,
         "delete": PermissionCode.FILE_DELETE,
     }
-    permission = permission_map.get(action)
-    if permission and user.has_permission(permission.value):
-        return True
+    if user.is_admin:
+        permission = permission_map.get(action)
+        if permission and user.has_permission(permission.value):
+            return True
 
     return has_shared_access(user, node, action)
 

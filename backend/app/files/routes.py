@@ -113,12 +113,19 @@ def list_files():
 
     parent_id = _parse_nullable_int(request.args.get("parent_id"), "parent_id")
 
-    query = scope_query_to_user(FileNode.query, user)
     if parent_id is None:
-        query = query.filter(FileNode.parent_id.is_(None))
-    else:
-        query = query.filter(FileNode.parent_id == parent_id)
-    items = query.order_by(FileNode.type.asc(), FileNode.name.asc()).all()
+        query = FileNode.query.filter(FileNode.parent_id.is_(None))
+        query = scope_query_to_user(query, user)
+        items = query.order_by(FileNode.type.asc(), FileNode.name.asc()).all()
+        return jsonify({"items": [item.to_dict() for item in items]})
+
+    parent = _get_node(parent_id)
+    if parent.type != FileNodeType.FOLDER:
+        raise APIError(400, "INVALID_PARENT", "Parent must be a folder.")
+    if not can_manage_node(user, parent, "read"):
+        raise APIError(403, "FORBIDDEN", "You cannot read this folder.")
+
+    items = FileNode.query.filter(FileNode.parent_id == parent_id).order_by(FileNode.type.asc(), FileNode.name.asc()).all()
 
     return jsonify({"items": [item.to_dict() for item in items]})
 

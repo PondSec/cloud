@@ -58,6 +58,77 @@ export interface AdminSettings {
   updated_at: string | null;
 }
 
+export type ShareAccess = 'read' | 'write';
+
+export interface InternalShare {
+  id: number;
+  file_id: number;
+  shared_with_user_id: number;
+  shared_with_username: string | null;
+  created_by_id: number;
+  created_by_username: string | null;
+  access: ShareAccess;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExternalShareLink {
+  id: number;
+  file_id: number;
+  created_by_id: number;
+  token: string;
+  expires_at: string | null;
+  created_at: string;
+  public_url: string;
+  item: FileNode | null;
+}
+
+export interface SharedWithMeItem {
+  share: InternalShare;
+  item: FileNode;
+}
+
+export interface OnlyOfficeDocumentPermissions {
+  edit: boolean;
+  download: boolean;
+  print: boolean;
+  copy: boolean;
+}
+
+export interface OnlyOfficeDocumentConfig {
+  fileType: string;
+  title: string;
+  key: string;
+  url: string;
+  permissions: OnlyOfficeDocumentPermissions;
+}
+
+export interface OnlyOfficeEditorUser {
+  id: string;
+  name: string;
+}
+
+export interface OnlyOfficeEditorConfig {
+  mode: 'edit' | 'view';
+  callbackUrl: string;
+  lang: string;
+  user: OnlyOfficeEditorUser;
+}
+
+export interface OnlyOfficeSessionConfig {
+  document: OnlyOfficeDocumentConfig;
+  documentType: 'word' | 'cell' | 'slide' | 'pdf';
+  editorConfig: OnlyOfficeEditorConfig;
+  token?: string;
+}
+
+export interface OnlyOfficeSession {
+  file_id: number;
+  can_edit: boolean;
+  document_server_url: string;
+  config: OnlyOfficeSessionConfig;
+}
+
 export interface ApiError {
   error: {
     code: string;

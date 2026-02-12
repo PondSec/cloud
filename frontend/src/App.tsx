@@ -7,6 +7,7 @@ import { AdminPage } from '@/pages/AdminPage';
 import { FilesPage } from '@/pages/FilesPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
+import { OfficeEditorPage } from '@/pages/OfficeEditorPage';
 import { RecentsPage } from '@/pages/RecentsPage';
 import { SearchPage } from '@/pages/SearchPage';
 import { SettingsPage } from '@/pages/SettingsPage';
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/app" element={<AppShell />}>
           <Route index element={<Navigate to="/app/files" replace />} />
           <Route path="files" element={<FilesPage />} />
+          <Route path="office/:fileId" element={<OfficeEditorPage />} />
           <Route path="recents" element={<RecentsPage />} />
           <Route path="shared" element={<SharedPage />} />
           <Route path="search" element={<SearchPage />} />

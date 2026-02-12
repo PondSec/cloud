@@ -22,6 +22,9 @@ frontend/.env
 
 # Runtime storage
 backend/storage/
+storage/
+.runtime/
+cloud.db
 
 # OS
 .DS_Store

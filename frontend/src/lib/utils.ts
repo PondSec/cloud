@@ -19,3 +19,28 @@ export function formatDate(value: string): string {
     timeStyle: 'short',
   }).format(new Date(value));
 }
+
+const ONLYOFFICE_EXTENSIONS = new Set([
+  'doc',
+  'docx',
+  'odt',
+  'rtf',
+  'txt',
+  'pdf',
+  'xls',
+  'xlsx',
+  'ods',
+  'csv',
+  'ppt',
+  'pptx',
+  'odp',
+]);
+
+export function isOnlyOfficeSupportedFileName(fileName: string): boolean {
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex < 0 || dotIndex === fileName.length - 1) {
+    return false;
+  }
+  const ext = fileName.slice(dotIndex + 1).toLowerCase();
+  return ONLYOFFICE_EXTENSIONS.has(ext);
+}

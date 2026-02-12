@@ -1,6 +1,18 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
-import type { AdminSettings, ApiError, AuthResponse, FileNode, FolderTreeNode, User } from '@/types/api';
+import type {
+  AdminSettings,
+  ApiError,
+  AuthResponse,
+  ExternalShareLink,
+  FileNode,
+  FolderTreeNode,
+  InternalShare,
+  OnlyOfficeSession,
+  ShareAccess,
+  SharedWithMeItem,
+  User,
+} from '@/types/api';
 import { clearAuthSession, getAccessToken, getRefreshToken, setAccessToken } from './auth-storage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
@@ -181,6 +193,44 @@ export const api = {
     },
     async deleteUser(userId: number): Promise<void> {
       await client.delete(`/admin/users/${userId}`);
+    },
+  },
+  shares: {
+    async listInternal(fileId: number): Promise<InternalShare[]> {
+      const { data } = await client.get<{ items: InternalShare[] }>(`/shares/internal?file_id=${fileId}`);
+      return data.items;
+    },
+    async upsertInternal(payload: { file_id: number; username: string; access: ShareAccess }): Promise<InternalShare> {
+      const { data } = await client.post<{ share: InternalShare }>('/shares/internal', payload);
+      return data.share;
+    },
+    async deleteInternal(shareId: number): Promise<void> {
+      await client.delete(`/shares/internal/${shareId}`);
+    },
+    async sharedWithMe(): Promise<SharedWithMeItem[]> {
+      const { data } = await client.get<{ items: SharedWithMeItem[] }>('/shares/shared-with-me');
+      return data.items;
+    },
+    async listExternal(fileId: number): Promise<ExternalShareLink[]> {
+      const { data } = await client.get<{ items: ExternalShareLink[] }>(`/shares/external?file_id=${fileId}`);
+      return data.items;
+    },
+    async createExternal(payload: { file_id: number; expires_in_days?: number | null }): Promise<ExternalShareLink> {
+      const { data } = await client.post<{ link: ExternalShareLink }>('/shares/external', payload);
+      return data.link;
+    },
+    async deleteExternal(linkId: number): Promise<void> {
+      await client.delete(`/shares/external/${linkId}`);
+    },
+  },
+  office: {
+    async createSession(fileId: number): Promise<OnlyOfficeSession> {
+      const { data } = await client.post<OnlyOfficeSession>('/office/session', { file_id: fileId });
+      return data;
+    },
+    async supportedExtensions(): Promise<string[]> {
+      const { data } = await client.get<{ extensions: string[] }>('/office/supported');
+      return data.extensions;
     },
   },
 };

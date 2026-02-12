@@ -44,6 +44,11 @@ class FileNodeType(str, enum.Enum):
     FOLDER = "folder"
 
 
+class ShareAccessLevel(str, enum.Enum):
+    READ = "read"
+    WRITE = "write"
+
+
 class Permission(db.Model):
     __tablename__ = "permissions"
 
@@ -168,6 +173,50 @@ class ShareLink(db.Model):
     token = db.Column(db.String(128), unique=True, nullable=False, default=lambda: uuid4().hex)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+    file = db.relationship("FileNode")
+    created_by = db.relationship("User")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "file_id": self.file_id,
+            "created_by_id": self.created_by_id,
+            "token": self.token,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "created_at": self.created_at.isoformat(),
+        }
+
+
+class InternalShare(db.Model):
+    __tablename__ = "internal_shares"
+
+    id = db.Column(db.Integer, primary_key=True)
+    file_id = db.Column(db.Integer, db.ForeignKey("file_nodes.id", ondelete="CASCADE"), nullable=False, index=True)
+    shared_with_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    access = db.Column(db.Enum(ShareAccessLevel), nullable=False, default=ShareAccessLevel.READ)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    file = db.relationship("FileNode")
+    shared_with_user = db.relationship("User", foreign_keys=[shared_with_user_id])
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+
+    __table_args__ = (db.UniqueConstraint("file_id", "shared_with_user_id", name="uq_internal_share_file_user"),)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "file_id": self.file_id,
+            "shared_with_user_id": self.shared_with_user_id,
+            "shared_with_username": self.shared_with_user.username if self.shared_with_user else None,
+            "created_by_id": self.created_by_id,
+            "created_by_username": self.created_by.username if self.created_by else None,
+            "access": self.access.value,
+            "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
 
 
 class AppSettings(db.Model):

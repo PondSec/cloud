@@ -1,12 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { FileList, type SortDirection, type SortKey, type ViewMode } from '@/components/files/FileList';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
 
 export function SearchPage() {
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -41,7 +43,7 @@ export function SearchPage() {
           Type at least 2 characters.
         </div>
       ) : results.isLoading ? (
-        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-300">Searching…</div>
+        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-300">Searching...</div>
       ) : (
         <FileList
           files={results.data ?? []}
@@ -54,6 +56,7 @@ export function SearchPage() {
           onDownload={(node) => {
             void api.files.download(node);
           }}
+          onOpenInOffice={(node) => navigate(`/app/office/${node.id}`)}
         />
       )}
     </div>

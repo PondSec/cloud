@@ -24,7 +24,13 @@ def app(tmp_path: Path):
             "ALLOW_REGISTRATION": False,
             "DEFAULT_QUOTA_BYTES": 10 * 1024 * 1024,
             "MAX_UPLOAD_SIZE_BYTES": 5 * 1024 * 1024,
-            "FRONTEND_ORIGIN": "http://localhost:5173",
+            "FRONTEND_ORIGINS": ["http://localhost:5173"],
+            "ONLYOFFICE_ENABLED": True,
+            "ONLYOFFICE_DOCUMENT_SERVER_URL": "http://onlyoffice.test",
+            "ONLYOFFICE_PUBLIC_BACKEND_URL": "http://backend.test",
+            "ONLYOFFICE_TOKEN_SECRET": "test-onlyoffice-token-secret-at-least-32-bytes",
+            "ONLYOFFICE_TOKEN_TTL_SECONDS": 3600,
+            "ONLYOFFICE_JWT_SECRET": "",
         }
     )
 

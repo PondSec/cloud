@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { RefreshCw, FolderPlus, Upload, Search, LogOut } from 'lucide-react';
+import { RefreshCw, FolderPlus, Upload, LogOut, X } from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { FileList, type SortDirection, type SortKey, type ViewMode } from '@/components/files/FileList';
 import { FolderTree } from '@/components/files/FolderTree';
 import { MoveModal } from '@/components/files/MoveModal';
+import { ShareModal } from '@/components/files/ShareModal';
 import { UploadDropzone } from '@/components/files/UploadDropzone';
 import GlassIcons from '@/components/reactbits/GlassIcons';
 import GradualBlur from '@/components/reactbits/GradualBlur';
@@ -47,6 +48,33 @@ function indexFolders(tree: FolderTreeNode[]): Map<number, IndexedFolder> {
   return map;
 }
 
+function isAncestorOrSelf(folderId: number, currentFolderId: number | null, index: Map<number, IndexedFolder>): boolean {
+  let cursor = currentFolderId;
+  while (cursor !== null) {
+    if (cursor === folderId) {
+      return true;
+    }
+    cursor = index.get(cursor)?.parent_id ?? null;
+  }
+  return false;
+}
+
+function folderTreeNodeToFileNode(node: FolderTreeNode): FileNode {
+  const now = new Date().toISOString();
+  return {
+    id: node.id,
+    parent_id: node.parent_id,
+    owner_id: node.owner_id,
+    name: node.name,
+    type: 'folder',
+    size: 0,
+    mime: 'inode/directory',
+    storage_path: null,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
 export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -57,6 +85,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [localSearch, setLocalSearch] = useState('');
   const [moveNode, setMoveNode] = useState<FileNode | null>(null);
+  const [shareNode, setShareNode] = useState<FileNode | null>(null);
 
   const {
     prefs: { effectsQuality, animationsEnabled },
@@ -91,6 +120,9 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
     stack.reverse();
     return trail.concat(stack);
   }, [currentParentId, folderIndex]);
+
+  const isFolderViewActive = currentParentId !== null;
+  const activeFolderName = currentParentId === null ? null : (folderIndex.get(currentParentId)?.name ?? 'Folder');
 
   const invalidate = async () => {
     await Promise.all([
@@ -145,6 +177,9 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
     return items.filter((item) => item.name.toLowerCase().includes(q));
   }, [filesQuery.data, localSearch]);
 
+  const shouldShowOverviewPanel =
+    showOverview && !isFolderViewActive && (filesQuery.data?.length ?? 0) === 0 && localSearch.trim() === '';
+
   const handleCreateFolder = async () => {
     const name = window.prompt('Folder name');
     if (!name) {
@@ -160,7 +195,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
     toast.success(`${files.length} file(s) uploaded`);
   };
 
-  const handleRename = async (node: FileNode) => {
+  const handleRename = async (node: Pick<FileNode, 'id' | 'name'>) => {
     const name = window.prompt('New name', node.name);
     if (!name || name === node.name) {
       return;
@@ -168,11 +203,19 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
     await updateMutation.mutateAsync({ nodeId: node.id, payload: { name } });
   };
 
-  const handleDelete = async (node: FileNode) => {
+  const handleDelete = async (node: Pick<FileNode, 'id' | 'name' | 'type' | 'parent_id'>) => {
     if (!window.confirm(`Delete ${node.name}? This cannot be undone.`)) {
       return;
     }
+
+    const shouldExitCurrentFolder =
+      node.type === 'folder' && isAncestorOrSelf(node.id, currentParentId, folderIndex);
+
     await deleteMutation.mutateAsync(node.id);
+
+    if (shouldExitCurrentFolder) {
+      setCurrentParentId(node.parent_id ?? null);
+    }
   };
 
   const quickActions = [
@@ -213,7 +256,18 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
       />
 
       <aside className="w-72 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-        <FolderTree tree={treeQuery.data ?? []} currentParentId={currentParentId} onSelect={setCurrentParentId} />
+        <FolderTree
+          tree={treeQuery.data ?? []}
+          currentParentId={currentParentId}
+          onSelect={setCurrentParentId}
+          onRenameFolder={(node) => {
+            void handleRename(node);
+          }}
+          onMoveFolder={(node) => setMoveNode(folderTreeNodeToFileNode(node))}
+          onDeleteFolder={(node) => {
+            void handleDelete({ id: node.id, name: node.name, type: 'folder', parent_id: node.parent_id });
+          }}
+        />
       </aside>
 
       <section className="relative flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
@@ -257,7 +311,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
                 <Input
                   value={localSearch}
                   onChange={(event) => setLocalSearch(event.target.value)}
-                  placeholder="Filter current folder"
+                  placeholder={isFolderViewActive ? 'Filter this folder' : 'Filter current folder'}
                   aria-label="Filter files"
                 />
               </div>
@@ -271,15 +325,22 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
                 <Button variant="secondary" size="sm" onClick={() => void invalidate()}>
                   <RefreshCw size={14} className="mr-1" /> Refresh
                 </Button>
+                {isFolderViewActive ? (
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentParentId(null)}>
+                    <X size={14} className="mr-1" /> Close Folder
+                  </Button>
+                ) : null}
               </div>
             </div>
 
-            <div className="hidden sm:block">
-              <GlassIcons items={quickActions} />
-            </div>
+            {!isFolderViewActive ? (
+              <div className="hidden sm:block">
+                <GlassIcons items={quickActions} />
+              </div>
+            ) : null}
           </header>
 
-          {showOverview ? (
+          {shouldShowOverviewPanel ? (
             <div className="border-b border-white/10 px-3 py-2">
               <MagicBento
                 textAutoHide
@@ -297,9 +358,25 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
             </div>
           ) : null}
 
-          <div className="px-3 pt-3">
-            <UploadDropzone onFiles={handleUpload} disabled={uploadMutation.isPending} />
-          </div>
+          {isFolderViewActive ? (
+            <div className="border-b border-white/10 px-3 py-3">
+              <div className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 py-2">
+                <p className="text-xs uppercase tracking-wide text-cyan-100/80">Folder View</p>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-zinc-100">
+                    Showing contents of <span className="font-semibold text-cyan-100">{activeFolderName}</span>
+                  </p>
+                  <Button variant="secondary" size="sm" onClick={() => setCurrentParentId(null)}>
+                    <X size={14} className="mr-1" /> Back to Overview
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="px-3 pt-3">
+              <UploadDropzone onFiles={handleUpload} disabled={uploadMutation.isPending} />
+            </div>
+          )}
 
           <div className="relative flex-1 overflow-hidden p-3">
             <div className="h-full overflow-auto pb-20 pr-1">
@@ -331,6 +408,10 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
                   onDownload={(node) => {
                     void api.files.download(node);
                   }}
+                  onShare={(node) => setShareNode(node)}
+                  onOpenInOffice={(node) => {
+                    navigate(`/app/office/${node.id}`);
+                  }}
                 />
               )}
             </div>
@@ -349,6 +430,8 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
           await updateMutation.mutateAsync({ nodeId: moveNode.id, payload: { parent_id: parentId } });
         }}
       />
+
+      <ShareModal open={shareNode !== null} node={shareNode} onClose={() => setShareNode(null)} />
     </div>
   );
 }

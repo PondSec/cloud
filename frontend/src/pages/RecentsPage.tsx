@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { FileList, type SortDirection, type SortKey, type ViewMode } from '@/components/files/FileList';
 import GradualBlur from '@/components/reactbits/GradualBlur';
 import { api } from '@/lib/api';
 
 export function RecentsPage() {
+  const navigate = useNavigate();
   const [sortKey, setSortKey] = useState<SortKey>('updated_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -20,7 +22,7 @@ export function RecentsPage() {
       <div className="h-full overflow-auto pb-20">
         <h1 className="mb-4 text-2xl font-semibold">Recents</h1>
         {query.isLoading ? (
-          <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">Loading…</div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">Loading...</div>
         ) : (
           <FileList
             files={query.data ?? []}
@@ -33,6 +35,7 @@ export function RecentsPage() {
             onDownload={(node) => {
               void api.files.download(node);
             }}
+            onOpenInOffice={(node) => navigate(`/app/office/${node.id}`)}
           />
         )}
       </div>

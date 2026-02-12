@@ -15,6 +15,8 @@ from .common.errors import error_payload, register_error_handlers
 from .config import Config
 from .extensions import cors, db, jwt, migrate
 from .files import files_bp
+from .office import office_bp
+from .shares import public_shares_bp, shares_bp
 
 
 load_dotenv()
@@ -46,10 +48,13 @@ def create_app(config_override: dict[str, Any] | None = None) -> Flask:
     migrate.init_app(app, db)
     jwt.init_app(app)
     _register_jwt_handlers(jwt)
-    cors.init_app(app, resources={r"/*": {"origins": [app.config["FRONTEND_ORIGIN"]]}})
+    cors.init_app(app, resources={r"/*": {"origins": app.config["FRONTEND_ORIGINS"]}})
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)
+    app.register_blueprint(office_bp)
+    app.register_blueprint(shares_bp)
+    app.register_blueprint(public_shares_bp)
     app.register_blueprint(admin_bp)
 
     @app.get("/health")

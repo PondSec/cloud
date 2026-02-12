@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 232 42% 6%;
+  --foreground: 210 40% 96%;
+  --card: 228 34% 12%;
+  --card-foreground: 210 36% 96%;
+  --primary: 187 86% 69%;
+  --primary-foreground: 230 42% 8%;
+  --accent: 330 84% 72%;
+  --accent-foreground: 228 34% 8%;
+  --border: 222 33% 24%;
+  --muted: 224 22% 18%;
+  --muted-foreground: 221 18% 70%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: hsl(var(--foreground));
+  font-family: 'Outfit', ui-sans-serif, system-ui;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(66, 211, 255, 0.14), transparent 40%),
+    radial-gradient(circle at 100% 30%, rgba(255, 138, 192, 0.14), transparent 35%),
+    linear-gradient(145deg, #03030b, #07091c 45%, #09071a);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+}
+
+.dock-item.active {
+  border-color: rgba(125, 252, 255, 0.7);
+  box-shadow:
+    0 0 0 1px rgba(125, 252, 255, 0.35),
+    0 0 24px rgba(125, 252, 255, 0.22);
+}

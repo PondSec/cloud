@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual envs
+.venv/
+backend/.venv/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+frontend/dist/
+
+# Env files
+.env
+backend/.env
+frontend/.env
+
+# Runtime storage
+backend/storage/
+
+# OS
+.DS_Store

@@ -1,9 +1,10 @@
 import {
+  Code2,
   FolderOpen,
   History,
-  Share2,
   Search,
   Settings,
+  Share2,
   Shield,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -24,6 +25,7 @@ export function DockNav() {
       { label: 'Shared', path: '/app/shared', icon: <Share2 size={18} /> },
       { label: 'Search', path: '/app/search', icon: <Search size={18} /> },
       { label: 'Settings', path: '/app/settings', icon: <Settings size={18} /> },
+      { label: 'IDE', path: '/dev/workspaces', icon: <Code2 size={18} /> },
     ];
 
     const isAdmin = user?.roles.some((role) => role.name === 'admin');
@@ -33,7 +35,14 @@ export function DockNav() {
 
     return base.map((item) => ({
       ...item,
-      className: location.pathname === item.path ? 'active' : '',
+      className:
+        item.path === '/dev/workspaces'
+          ? location.pathname.startsWith('/dev')
+            ? 'active'
+            : ''
+          : location.pathname === item.path
+            ? 'active'
+            : '',
       onClick: () => navigate(item.path),
     }));
   }, [location.pathname, navigate, user?.roles]);

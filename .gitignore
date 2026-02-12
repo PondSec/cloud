@@ -11,6 +11,8 @@ backend/.venv/
 # Node
 node_modules/
 frontend/node_modules/
+ide-backend/node_modules/
+runner/node_modules/
 
 # Build outputs
 frontend/dist/
@@ -25,6 +27,9 @@ backend/storage/
 storage/
 .runtime/
 cloud.db
+workspaces/
+backend/data/
+runner/data/
 
 # OS
 .DS_Store

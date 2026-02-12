@@ -21,6 +21,8 @@ BACKEND_DIR = ROOT_DIR / "backend"
 FRONTEND_DIR = ROOT_DIR / "frontend"
 RUNTIME_DIR = ROOT_DIR / ".runtime"
 BACKEND_VENV_DIR = RUNTIME_DIR / "backend-venv"
+IDE_DOCKER_COMPOSE_FILE = ROOT_DIR / "docker-compose.yml"
+IDE_DOCKER_SERVICES = ["workspace-image", "runner", "ide-backend"]
 MANAGED_ONLYOFFICE_CONTAINER = "cloud-onlyoffice"
 MANAGED_ONLYOFFICE_PORT = "8081"
 MANAGED_ONLYOFFICE_JWT_SECRET = "cloud-onlyoffice-jwt-secret-at-least-32-bytes"
@@ -48,6 +50,13 @@ def run_capture(
 
 def command_exists(command: str) -> bool:
     return shutil.which(command) is not None
+
+
+def docker_compose_available() -> bool:
+    if not command_exists("docker"):
+        return False
+    proc = run_capture(["docker", "compose", "version"])
+    return proc.returncode == 0
 
 
 def npm_command() -> str:
@@ -104,6 +113,20 @@ def ensure_frontend_dependencies(auto_install: bool) -> None:
         raise RuntimeError("Frontend dependencies are missing. Run: npm install (in frontend/)")
 
     run_checked([npm, "install"], cwd=FRONTEND_DIR)
+
+
+def ensure_ide_services() -> bool:
+    if not IDE_DOCKER_COMPOSE_FILE.exists():
+        return False
+    if not docker_compose_available():
+        return False
+
+    cmd = ["docker", "compose", "-f", str(IDE_DOCKER_COMPOSE_FILE), "up", "-d", *IDE_DOCKER_SERVICES]
+    proc = run_capture(cmd, cwd=ROOT_DIR)
+    if proc.returncode != 0:
+        print(f"[warn] Could not start IDE services: {proc.stderr.strip() or proc.stdout.strip()}")
+        return False
+    return True
 
 
 def seed_admin(python_executable: Path, username: str, password: str) -> None:
@@ -354,6 +377,7 @@ def start_backend(
 def start_frontend(port: int, backend_port: int) -> subprocess.Popen[str]:
     env = os.environ.copy()
     env["VITE_API_BASE_URL"] = f"http://127.0.0.1:{backend_port}"
+    env.setdefault("VITE_IDE_API_BASE_URL", "http://127.0.0.1:18080")
     env["FORCE_COLOR"] = "1"
     npm = npm_command()
     return subprocess.Popen(
@@ -380,6 +404,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--admin-user", default="admin")
     parser.add_argument("--admin-password", default="admin123")
     parser.add_argument("--backend-only", action="store_true")
+    parser.add_argument("--no-ide", action="store_true", help="Do not auto-start Cloud IDE services.")
     parser.add_argument("--no-install", action="store_true", help="Do not auto-install missing dependencies.")
     return parser.parse_args()
 
@@ -398,6 +423,10 @@ def main() -> int:
     ensure_backend_dependencies(backend_python, auto_install=auto_install)
     if not args.backend_only:
         ensure_frontend_dependencies(auto_install=auto_install)
+
+    ide_enabled = False
+    if not args.no_ide and not args.backend_only:
+        ide_enabled = ensure_ide_services()
 
     backend_env_overrides: dict[str, str] = {}
     onlyoffice_requested = os.environ.get("ONLYOFFICE_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
@@ -482,6 +511,11 @@ def main() -> int:
         print(f"Backend:  http://127.0.0.1:{args.backend_port}")
         if not args.backend_only:
             print(f"Frontend: http://127.0.0.1:{args.frontend_port}")
+            if ide_enabled:
+                print(f"IDE UI:   http://127.0.0.1:{args.frontend_port}/dev/workspaces")
+                print("IDE API:  http://127.0.0.1:18080")
+            else:
+                print("[hint] IDE services not running. Start them with: docker compose up -d workspace-image runner ide-backend")
         onlyoffice_enabled = backend_env_overrides.get("ONLYOFFICE_ENABLED", os.environ.get("ONLYOFFICE_ENABLED", "true")).strip().lower() not in {
             "0",
             "false",

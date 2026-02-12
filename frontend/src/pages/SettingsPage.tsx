@@ -1,4 +1,5 @@
 import { Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { useUiPrefs, type EffectsQuality } from '@/contexts/UiPrefsContext';
@@ -6,6 +7,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { formatBytes } from '@/lib/utils';
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const { data: user } = useCurrentUser();
   const { prefs, setEffectsQuality, setAnimationsEnabled } = useUiPrefs();
 
@@ -62,6 +64,14 @@ export function SettingsPage() {
             Enable animations and particle effects
           </label>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-black/20 p-4">
+        <h2 className="mb-3 text-lg font-semibold">Development</h2>
+        <p className="mb-3 text-sm text-zinc-300">Open the integrated Cloud IDE area for coding projects.</p>
+        <Button variant="secondary" onClick={() => navigate('/dev/workspaces')}>
+          Open Cloud IDE
+        </Button>
       </section>
     </div>
   );

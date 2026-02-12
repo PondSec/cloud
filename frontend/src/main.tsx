@@ -8,6 +8,7 @@ import App from './App';
 import { UiPrefsProvider } from './contexts/UiPrefsContext';
 import { queryClient } from './lib/query-client';
 import './index.css';
+import './styles/ide.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

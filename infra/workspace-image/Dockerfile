@@ -1,0 +1,16 @@
+FROM node:20-bookworm-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-pip python3-venv \
+    python3-debugpy \
+    build-essential gcc g++ clang clangd \
+    git curl ca-certificates bash \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN npm install -g typescript typescript-language-server pyright
+
+RUN if ! id -u coder >/dev/null 2>&1; then useradd -m -u 1000 coder || useradd -m coder; fi
+USER coder
+WORKDIR /workspaces
+
+CMD ["sleep", "infinity"]

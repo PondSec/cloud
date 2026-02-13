@@ -9,12 +9,12 @@ const DEFAULT_GLOW_COLOR = '132, 0, 255';
 const MOBILE_BREAKPOINT = 768;
 
 const cardData = [
-  { color: '#060010', title: 'Fast Access', description: 'Open and manage cloud files instantly.', label: 'Files' },
-  { color: '#060010', title: 'Recents', description: 'Continue from your latest activity.', label: 'Recent' },
-  { color: '#060010', title: 'Shared', description: 'Shared hooks are ready for extension.', label: 'Shared' },
-  { color: '#060010', title: 'Search', description: 'Find any node with indexed lookup.', label: 'Search' },
-  { color: '#060010', title: 'Settings', description: 'Tune visuals and preferences.', label: 'Settings' },
-  { color: '#060010', title: 'Security', description: 'JWT + RBAC + audit logs by default.', label: 'Secure' },
+  { color: '#060010', title: 'Direktzugriff', description: 'Dateien sofort öffnen und verwalten.', label: 'Dateien' },
+  { color: '#060010', title: 'Zuletzt', description: 'Nahtlos an Ihrer letzten Aktivität anknüpfen.', label: 'Zuletzt' },
+  { color: '#060010', title: 'Freigaben', description: 'Geteilte Inhalte strukturiert weiterführen.', label: 'Freigaben' },
+  { color: '#060010', title: 'Suche', description: 'Jeden Knoten schnell über Indexsuche finden.', label: 'Suche' },
+  { color: '#060010', title: 'Einstellungen', description: 'Ansicht und Verhalten präzise abstimmen.', label: 'Einstellungen' },
+  { color: '#060010', title: 'Sicherheit', description: 'JWT, RBAC und Audit-Logs standardmäßig aktiv.', label: 'Sicher' },
 ];
 
 const createParticleElement = (x, y, color = DEFAULT_GLOW_COLOR) => {

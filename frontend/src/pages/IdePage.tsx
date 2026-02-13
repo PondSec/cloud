@@ -56,7 +56,7 @@ export function IdePage() {
 
   const token = getIdeToken();
   const [activeView, setActiveView] = useState<ActivityView>('explorer');
-  const [runtimeStatus, setRuntimeStatus] = useState('runner: unknown');
+  const [runtimeStatus, setRuntimeStatus] = useState('Runner: unbekannt');
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [gitDiffRaw, setGitDiffRaw] = useState('');
@@ -89,7 +89,7 @@ export function IdePage() {
     try {
       const details = await ideApi.workspace.details(workspaceId);
       setWorkspace(details.workspace, details.settings);
-      setRuntimeStatus(details.runtime.running ? 'runner: active' : 'runner: stopped');
+      setRuntimeStatus(details.runtime.running ? 'Runner: aktiv' : 'Runner: gestoppt');
       const configuredPreviewCommand = details.settings.commands.preview?.trim() ?? '';
       const resolvedPreviewPort =
         details.settings.previewPort ??
@@ -97,7 +97,7 @@ export function IdePage() {
       setPreviewPort(resolvedPreviewPort);
 
       await ideApi.workspace.start(workspaceId);
-      setRuntimeStatus('runner: active');
+      setRuntimeStatus('Runner: aktiv');
 
       await loadDir('');
       await refreshGit();
@@ -184,7 +184,7 @@ export function IdePage() {
     const raw = configured || fallbackPreviewCommand;
     if (!raw) {
       setBottomPanel('output');
-      appendOutput(`\n[error] No command configured for '${task}'. Configure it in .cloudide.json or use custom command.`);
+      appendOutput(`\n[error] Für '${task}' ist kein Befehl konfiguriert. Hinterlegen Sie ihn in .cloudide.json oder verwenden Sie einen eigenen Befehl.`);
       return;
     }
 
@@ -216,7 +216,7 @@ export function IdePage() {
 
   async function renamePath(path: string): Promise<void> {
     const baseName = path.split('/').pop() || path;
-    const nextName = window.prompt('New name', baseName);
+    const nextName = window.prompt('Neuer Name', baseName);
     if (!nextName || nextName === baseName) return;
 
     const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
@@ -238,7 +238,7 @@ export function IdePage() {
   }
 
   async function movePath(path: string): Promise<void> {
-    const target = window.prompt('Move to path (include file/folder name)', path);
+    const target = window.prompt('Neuer Zielpfad (inkl. Datei-/Ordnername)', path);
     if (!target || target === path) return;
     const node = files.find((item) => item.path === path);
 
@@ -257,7 +257,7 @@ export function IdePage() {
   }
 
   async function deletePath(path: string): Promise<void> {
-    if (!window.confirm(`Delete '${path}'?`)) return;
+    if (!window.confirm(`'${path}' wirklich löschen?`)) return;
     try {
       await ideApi.files.remove(workspaceId, path);
       removeOpenFilesByPrefix(path);
@@ -274,7 +274,7 @@ export function IdePage() {
 
   async function runActiveFile(): Promise<void> {
     if (!activeFile) {
-      appendOutput('[error] No active file selected.\n');
+      appendOutput('[error] Keine aktive Datei ausgewählt.\n');
       return;
     }
     const ext = activeFile.path.split('.').pop()?.toLowerCase() || '';
@@ -389,12 +389,12 @@ export function IdePage() {
 
   const commandPaletteItems = useMemo(
     () => [
-      { id: 'files.refresh', title: 'Explorer: Refresh', run: () => void loadDir(explorerPath) },
-      { id: 'file.save', title: 'File: Save Active File', run: () => void saveActive() },
-      { id: 'git.refresh', title: 'Git: Refresh Status', run: () => void refreshGit() },
-      { id: 'task.run', title: 'Tasks: Run', run: () => void runTask('run') },
+      { id: 'files.refresh', title: 'Dateien: Aktualisieren', run: () => void loadDir(explorerPath) },
+      { id: 'file.save', title: 'Datei: Aktive Datei speichern', run: () => void saveActive() },
+      { id: 'git.refresh', title: 'Git: Status aktualisieren', run: () => void refreshGit() },
+      { id: 'task.run', title: 'Tasks: Starten', run: () => void runTask('run') },
       { id: 'task.build', title: 'Tasks: Build', run: () => void runTask('build') },
-      { id: 'preview.toggle', title: 'View: Toggle Preview', run: () => setPreviewVisible(!previewVisible) },
+      { id: 'preview.toggle', title: 'Ansicht: Vorschau umschalten', run: () => setPreviewVisible(!previewVisible) },
     ],
     [explorerPath, previewVisible, workspaceSettings, activeFile],
   );
@@ -434,7 +434,7 @@ export function IdePage() {
       <div className="panel-content">
         <input
           className="input"
-          placeholder="search in open files"
+          placeholder="In geöffneten Dateien suchen"
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
           style={{ width: '100%', marginBottom: 8 }}
@@ -483,7 +483,7 @@ export function IdePage() {
     sidebarBody = (
       <div className="panel-content">
         <p style={{ color: '#9f9f9f' }}>
-          Extension marketplace is a stub in MVP. Use backend LSP adapters to add additional language servers.
+          Der Erweiterungsbereich ist in dieser Version vorbereitet. Zusätzliche Sprachserver können über Backend-LSP-Adapter angebunden werden.
         </p>
       </div>
     );
@@ -491,13 +491,21 @@ export function IdePage() {
 
   if (!token) return null;
 
+  const viewLabel: Record<ActivityView, string> = {
+    explorer: 'Dateien',
+    search: 'Suche',
+    'source-control': 'Quellkontrolle',
+    run: 'Ausführen',
+    extensions: 'Erweiterungen',
+  };
+
   return (
     <div className="ide-root">
       <div className="app-shell">
         <ActivityBar active={activeView} onChange={setActiveView} />
 
         <section className="sidebar">
-          <header className="sidebar-header">{activeView.replace('-', ' ')}</header>
+          <header className="sidebar-header">{viewLabel[activeView]}</header>
           {sidebarBody}
         </section>
 
@@ -510,19 +518,19 @@ export function IdePage() {
               onClose={(path) => closeFile(path)}
             />
             <div className="editor-toolbar">
-              <div className="row">{activeFile?.path || '(no file opened)'}</div>
+              <div className="row">{activeFile?.path || '(keine Datei geöffnet)'}</div>
               <div className="row">
-                <Link className="btn" to="/app/files" title="Back to Cloud">
+                <Link className="btn" to="/app/files" title="Zurück zur Cloud">
                   <House size={14} />
                 </Link>
                 <button className="btn" onClick={() => navigate('/dev/workspaces')}>
-                  Workspaces
+                  Arbeitsbereiche
                 </button>
-                <button className="btn primary" onClick={() => void runActiveFile()} title="Run active file">
+                <button className="btn primary" onClick={() => void runActiveFile()} title="Aktive Datei ausführen">
                   <Play size={14} />
                 </button>
                 <button className="btn" onClick={() => void saveActive()}>
-                  Save
+                  Speichern
                 </button>
                 <button className="btn" onClick={() => setPaletteOpen(true)}>
                   Cmd/Ctrl+P
@@ -566,20 +574,20 @@ export function IdePage() {
               className={`bottom-tab ${bottomPanel === 'problems' ? 'active' : ''}`}
               onClick={() => setBottomPanel('problems')}
             >
-              Problems
+              Probleme
             </button>
             <button
               className={`bottom-tab ${bottomPanel === 'output' ? 'active' : ''}`}
               onClick={() => setBottomPanel('output')}
             >
-              Output
+              Ausgabe
             </button>
           </div>
 
           <div className="bottom-content">
             {bottomPanel === 'terminal' && <TerminalPanel workspaceId={workspaceId} token={token} />}
-            {bottomPanel === 'problems' && (problems.length ? problems.join('\n') : 'No diagnostics')}
-            {bottomPanel === 'output' && (outputLines.length ? outputLines.join('') : 'No task output')}
+            {bottomPanel === 'problems' && (problems.length ? problems.join('\n') : 'Keine Diagnosen')}
+            {bottomPanel === 'output' && (outputLines.length ? outputLines.join('') : 'Keine Task-Ausgabe')}
           </div>
         </section>
 
@@ -587,7 +595,7 @@ export function IdePage() {
           branch={branch}
           language={activeLanguage}
           cursor={cursor}
-          workspaceName={currentWorkspace?.name || 'workspace'}
+          workspaceName={currentWorkspace?.name || 'Workspace'}
           runtimeStatus={runtimeStatus}
         />
       </div>

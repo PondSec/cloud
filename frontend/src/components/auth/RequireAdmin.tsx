@@ -13,7 +13,7 @@ export function RequireAdmin({ children, fallbackTo = '/app/settings' }: Require
   const location = useLocation();
 
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center text-zinc-200">Checking admin access...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-zinc-200">Admin-Zugriff wird geprüft...</div>;
   }
 
   if (!isAdmin(user)) {

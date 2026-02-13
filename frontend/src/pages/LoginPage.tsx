@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api, toApiMessage } from '@/lib/api';
 import { setAuthSession } from '@/lib/auth-storage';
+import { BRAND } from '@/lib/brand';
 import { queryClient } from '@/lib/query-client';
 
 export function LoginPage() {
@@ -24,7 +25,7 @@ export function LoginPage() {
       await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       const redirectPath = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname;
       navigate(redirectPath ?? '/app/home', { replace: true });
-      toast.success('Welcome back');
+      toast.success('Willkommen zurück. Ihr Bereich ist bereit.');
     },
     onError: (error) => toast.error(toApiMessage(error)),
   });
@@ -47,13 +48,15 @@ export function LoginPage() {
           }}
         >
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold">Cloud Workspace</h1>
-            <p className="text-sm text-zinc-300">Sign in to your workspace.</p>
+            <p className="text-xs uppercase tracking-[0.12em] text-cyan-200/90">{BRAND.fullName}</p>
+            <h1 className="text-2xl font-semibold">{BRAND.loginTitle}</h1>
+            <p className="text-sm text-zinc-300">{BRAND.loginSubtitle}</p>
+            <p className="text-xs text-zinc-400">{BRAND.trustLine}</p>
           </div>
 
           <div className="space-y-2">
             <label htmlFor="username" className="text-sm text-zinc-300">
-              Username
+              Benutzername
             </label>
             <Input
               id="username"
@@ -66,7 +69,7 @@ export function LoginPage() {
 
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm text-zinc-300">
-              Password
+              Passwort
             </label>
             <Input
               id="password"
@@ -79,7 +82,7 @@ export function LoginPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Signing in...' : 'Sign In'}
+            {mutation.isPending ? 'Anmeldung wird vorbereitet...' : 'Sicher anmelden'}
           </Button>
         </form>
       </GlassSurface>

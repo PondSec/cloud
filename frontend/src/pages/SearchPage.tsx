@@ -23,8 +23,8 @@ export function SearchPage() {
   return (
     <div className="h-full space-y-4 overflow-auto p-4">
       <div>
-        <h1 className="mb-2 text-2xl font-semibold">Search</h1>
-        <p className="text-sm text-zinc-300">Find files and folders quickly.</p>
+        <h1 className="mb-2 text-2xl font-semibold">Suche</h1>
+        <p className="text-sm text-zinc-300">Finden Sie Dateien und Ordner in Sekunden.</p>
       </div>
 
       <div className="relative max-w-xl">
@@ -33,17 +33,17 @@ export function SearchPage() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           className="pl-9"
-          placeholder="Search by file or folder name"
-          aria-label="Search files"
+          placeholder="Datei- oder Ordnername eingeben"
+          aria-label="Dateien suchen"
         />
       </div>
 
       {query.trim().length < 2 ? (
         <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-400">
-          Type at least 2 characters.
+          Geben Sie mindestens 2 Zeichen ein.
         </div>
       ) : results.isLoading ? (
-        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-300">Searching...</div>
+        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-300">Suche läuft...</div>
       ) : (
         <FileList
           files={results.data ?? []}

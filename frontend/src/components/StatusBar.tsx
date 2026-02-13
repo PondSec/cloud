@@ -16,7 +16,7 @@ export function StatusBar({ branch, language, cursor, workspaceName, runtimeStat
       <div className="row">
         <span>{language}</span>
         <span>
-          Ln {cursor.line}, Col {cursor.column}
+          Zeile {cursor.line}, Spalte {cursor.column}
         </span>
         <span>{runtimeStatus}</span>
       </div>

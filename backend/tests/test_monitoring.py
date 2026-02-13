@@ -71,3 +71,16 @@ def test_snapshot_job_writes_to_db(app):
         assert SystemMetricSnapshot.query.count() == 0
         run_snapshot_cycle(Path(app.config["STORAGE_ROOT"]), retention_days=7)
         assert SystemMetricSnapshot.query.count() == 1
+
+
+def test_options_preflight_does_not_require_jwt(client):
+    headers = {
+        "Origin": "http://127.0.0.1:5173",
+        "Access-Control-Request-Method": "GET",
+    }
+
+    monitoring_preflight = client.options("/api/monitoring/overview", headers=headers)
+    assert monitoring_preflight.status_code in {200, 204}
+
+    audit_preflight = client.options("/api/audit/logs", headers=headers)
+    assert audit_preflight.status_code in {200, 204}

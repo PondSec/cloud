@@ -30,7 +30,7 @@ function userRoleIds(user: User): number[] {
 function describeAdminApiError(error: unknown, scope: 'roles' | 'permissions' | 'users' | 'settings'): string {
   const status = (error as { response?: { status?: number } } | null)?.response?.status;
   if (status === 404 && (scope === 'roles' || scope === 'permissions')) {
-    return 'Roles API not found on backend. Restart the backend so /admin/roles and /admin/permissions are loaded.';
+    return 'Rollen-API im Backend nicht gefunden. Bitte Backend neu starten, damit /admin/roles und /admin/permissions verfügbar sind.';
   }
   return toApiMessage(error);
 }
@@ -128,7 +128,7 @@ export function AdminPage() {
         default_quota: Number(defaultQuota),
       }),
     onSuccess: async () => {
-      toast.success('Settings updated');
+      toast.success('Einstellungen aktualisiert');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
     },
     onError: (error) => toast.error(toApiMessage(error)),
@@ -142,7 +142,7 @@ export function AdminPage() {
         permission_codes: newRolePermissionCodes,
       }),
     onSuccess: async () => {
-      toast.success('Role created');
+      toast.success('Rolle erstellt');
       setNewRoleName('');
       setNewRoleDescription('');
       setNewRolePermissionCodes([]);
@@ -156,7 +156,7 @@ export function AdminPage() {
     mutationFn: ({ roleId, payload }: { roleId: number; payload: Record<string, unknown> }) =>
       api.admin.updateRole(roleId, payload),
     onSuccess: async () => {
-      toast.success('Role updated');
+      toast.success('Rolle aktualisiert');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'roles'] });
       await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     },
@@ -166,7 +166,7 @@ export function AdminPage() {
   const deleteRoleMutation = useMutation({
     mutationFn: (roleId: number) => api.admin.deleteRole(roleId),
     onSuccess: async () => {
-      toast.success('Role deleted');
+      toast.success('Rolle gelöscht');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'roles'] });
       await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     },
@@ -182,7 +182,7 @@ export function AdminPage() {
         role_ids: canManageRoles ? newRoleIds : undefined,
       }),
     onSuccess: async () => {
-      toast.success('User created');
+      toast.success('Benutzer erstellt');
       setNewUsername('');
       setNewPassword('');
       setNewBytesLimit('');
@@ -199,7 +199,7 @@ export function AdminPage() {
       api.admin.updateUser(userId, payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
-      toast.success('User updated');
+      toast.success('Benutzer aktualisiert');
     },
     onError: (error) => toast.error(toApiMessage(error)),
   });
@@ -207,7 +207,7 @@ export function AdminPage() {
   const deleteUserMutation = useMutation({
     mutationFn: (userId: number) => api.admin.deleteUser(userId),
     onSuccess: async () => {
-      toast.success('User deleted');
+      toast.success('Benutzer gelöscht');
       await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     },
     onError: (error) => toast.error(toApiMessage(error)),
@@ -217,7 +217,7 @@ export function AdminPage() {
     return (
       <div className="h-full overflow-auto p-4">
         <div className="rounded-2xl border border-amber-300/35 bg-amber-500/10 p-5 text-sm text-amber-100">
-          You do not have admin permissions to view this area.
+          Sie haben keine Berechtigung für diesen Verwaltungsbereich.
         </div>
       </div>
     );
@@ -227,13 +227,15 @@ export function AdminPage() {
     <div className="h-full overflow-auto p-4">
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-semibold">Admin</h1>
-          <p className="text-sm text-zinc-300">Define roles, assign granular permissions, and control visibility per user.</p>
+          <h1 className="text-2xl font-semibold">Verwaltung</h1>
+          <p className="text-sm text-zinc-300">
+            Steuern Sie Rollen, Rechte und Sichtbarkeit zentral für Ihr Team.
+          </p>
         </div>
 
         {canManageSettings ? (
           <section className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-            <h2 className="text-lg font-semibold">Server Settings</h2>
+            <h2 className="text-lg font-semibold">Server-Einstellungen</h2>
 
             {settingsQuery.isError ? (
               <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-100">
@@ -247,23 +249,23 @@ export function AdminPage() {
                 checked={allowRegistration}
                 onChange={(event) => setAllowRegistration(event.target.checked)}
               />
-              Allow self registration
+              Selbstregistrierung erlauben
             </label>
 
             <div className="grid gap-2 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm text-zinc-300">Max upload size (bytes)</label>
+                <label className="mb-1 block text-sm text-zinc-300">Max. Uploadgröße (Bytes)</label>
                 <Input value={maxUploadSize} onChange={(event) => setMaxUploadSize(event.target.value)} />
               </div>
               <div>
-                <label className="mb-1 block text-sm text-zinc-300">Default quota (bytes)</label>
+                <label className="mb-1 block text-sm text-zinc-300">Standard-Quota (Bytes)</label>
                 <Input value={defaultQuota} onChange={(event) => setDefaultQuota(event.target.value)} />
               </div>
             </div>
 
             <Button onClick={() => saveSettingsMutation.mutate()} disabled={saveSettingsMutation.isPending}>
               <Save size={14} className="mr-1" />
-              Save Settings
+              Einstellungen speichern
             </Button>
           </section>
         ) : null}
@@ -272,7 +274,7 @@ export function AdminPage() {
           <section className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
             <div className="flex items-center gap-2">
               <ShieldCheck size={18} />
-              <h2 className="text-lg font-semibold">Roles & Permissions</h2>
+              <h2 className="text-lg font-semibold">Rollen & Rechte</h2>
             </div>
 
             {rolesQuery.isError ? (
@@ -287,15 +289,15 @@ export function AdminPage() {
             ) : null}
 
             <div className="space-y-3 rounded-xl border border-cyan-300/20 bg-cyan-500/5 p-3">
-              <h3 className="font-medium">Create Role</h3>
+              <h3 className="font-medium">Rolle erstellen</h3>
               <div className="grid gap-2 md:grid-cols-2">
                 <Input
-                  placeholder="Role name (e.g. media-editor)"
+                  placeholder="Rollenname (z. B. media-editor)"
                   value={newRoleName}
                   onChange={(event) => setNewRoleName(event.target.value)}
                 />
                 <Input
-                  placeholder="Description (optional)"
+                  placeholder="Beschreibung (optional)"
                   value={newRoleDescription}
                   onChange={(event) => setNewRoleDescription(event.target.value)}
                 />
@@ -327,7 +329,7 @@ export function AdminPage() {
                 disabled={createRoleMutation.isPending || !newRoleName.trim()}
               >
                 <Plus size={14} className="mr-1" />
-                Create Role
+                Rolle erstellen
               </Button>
             </div>
 
@@ -355,7 +357,7 @@ export function AdminPage() {
                       />
                       <Input
                         value={draft.description}
-                        placeholder="Description"
+                        placeholder="Beschreibung"
                         onChange={(event) =>
                           setRoleDrafts((prev) => ({
                             ...prev,
@@ -365,9 +367,7 @@ export function AdminPage() {
                       />
                     </div>
 
-                    {systemRole ? (
-                      <p className="text-xs text-zinc-400">System role: permissions are managed automatically.</p>
-                    ) : null}
+                    {systemRole ? <p className="text-xs text-zinc-400">Systemrolle: Rechte werden automatisch verwaltet.</p> : null}
 
                     <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                       {permissions.map((permission) => {
@@ -415,20 +415,20 @@ export function AdminPage() {
                         disabled={updateRoleMutation.isPending || !draft.name.trim()}
                       >
                         <Save size={14} className="mr-1" />
-                        Save Role
+                        Rolle speichern
                       </Button>
                       {!systemRole ? (
                         <Button
                           variant="destructive"
                           onClick={() => {
-                            if (window.confirm(`Delete role '${role.name}'?`)) {
+                            if (window.confirm(`Rolle '${role.name}' wirklich löschen?`)) {
                               deleteRoleMutation.mutate(role.id);
                             }
                           }}
                           disabled={deleteRoleMutation.isPending}
                         >
                           <Trash2 size={14} className="mr-1" />
-                          Delete Role
+                          Rolle löschen
                         </Button>
                       ) : null}
                     </div>
@@ -444,7 +444,7 @@ export function AdminPage() {
             <section className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
               <div className="flex items-center gap-2">
                 <UserPlus size={18} />
-                <h2 className="text-lg font-semibold">Create User</h2>
+                <h2 className="text-lg font-semibold">Benutzer erstellen</h2>
               </div>
 
               {usersQuery.isError ? (
@@ -454,15 +454,15 @@ export function AdminPage() {
               ) : null}
 
               <div className="grid gap-2 md:grid-cols-3">
-                <Input placeholder="Username" value={newUsername} onChange={(event) => setNewUsername(event.target.value)} />
+                <Input placeholder="Benutzername" value={newUsername} onChange={(event) => setNewUsername(event.target.value)} />
                 <Input
-                  placeholder="Password (min 8)"
+                  placeholder="Passwort (mind. 8 Zeichen)"
                   type="password"
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
                 />
                 <Input
-                  placeholder="Quota bytes (optional)"
+                  placeholder="Quota in Bytes (optional)"
                   value={newBytesLimit}
                   onChange={(event) => setNewBytesLimit(event.target.value)}
                 />
@@ -489,9 +489,7 @@ export function AdminPage() {
                     );
                   })}
                 </div>
-              ) : (
-                <p className="text-xs text-zinc-400">Role assignment is restricted. New users get the default role.</p>
-              )}
+              ) : <p className="text-xs text-zinc-400">Rollenvergabe ist eingeschränkt. Neue Benutzer erhalten automatisch die Standardrolle.</p>}
 
               <Button
                 onClick={() => createUserMutation.mutate()}
@@ -503,12 +501,12 @@ export function AdminPage() {
                 }
               >
                 <Plus size={14} className="mr-1" />
-                Create User
+                Benutzer erstellen
               </Button>
             </section>
 
             <section className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
-              <h2 className="text-lg font-semibold">Users</h2>
+              <h2 className="text-lg font-semibold">Benutzer</h2>
 
               <div className="space-y-3">
                 {users.map((user) => {
@@ -535,17 +533,17 @@ export function AdminPage() {
                                 })
                               }
                             />
-                            Active
+                            Aktiv
                           </label>
                           <Button
                             variant="destructive"
                             size="icon"
                             onClick={() => {
-                              if (window.confirm(`Delete ${user.username}?`)) {
+                              if (window.confirm(`Benutzer ${user.username} wirklich löschen?`)) {
                                 deleteUserMutation.mutate(user.id);
                               }
                             }}
-                            aria-label={`Delete user ${user.username}`}
+                            aria-label={`Benutzer ${user.username} loeschen`}
                           >
                             <Trash2 size={14} />
                           </Button>
@@ -599,7 +597,7 @@ export function AdminPage() {
                               disabled={updateUserMutation.isPending || roleDraft.length === 0}
                             >
                               <Save size={14} className="mr-1" />
-                              Save Roles
+                              Rollen speichern
                             </Button>
                           </div>
                         </>

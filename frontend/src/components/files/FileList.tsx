@@ -66,34 +66,34 @@ export function FileList({
   }, [files, sortKey, sortDirection]);
 
   const renderActions = (node: FileNode) => (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex items-center justify-end gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
       {onDownload && node.type === 'file' ? (
-        <Button variant="ghost" size="icon" onClick={() => onDownload(node)} aria-label={`Download ${node.name}`}>
+        <Button variant="ghost" size="icon" onClick={() => onDownload(node)} aria-label={`${node.name} herunterladen`}>
           <Download size={15} />
         </Button>
       ) : null}
       {onOpenInOffice && node.type === 'file' && isOnlyOfficeSupportedFileName(node.name) ? (
-        <Button variant="ghost" size="icon" onClick={() => onOpenInOffice(node)} aria-label={`Open ${node.name} in Office`}>
+        <Button variant="ghost" size="icon" onClick={() => onOpenInOffice(node)} aria-label={`${node.name} in Office öffnen`}>
           <span className="text-xs font-semibold">O</span>
         </Button>
       ) : null}
       {onRename ? (
-        <Button variant="ghost" size="icon" onClick={() => onRename(node)} aria-label={`Rename ${node.name}`}>
+        <Button variant="ghost" size="icon" onClick={() => onRename(node)} aria-label={`${node.name} umbenennen`}>
           <Pencil size={15} />
         </Button>
       ) : null}
       {onMove ? (
-        <Button variant="ghost" size="icon" onClick={() => onMove(node)} aria-label={`Move ${node.name}`}>
+        <Button variant="ghost" size="icon" onClick={() => onMove(node)} aria-label={`${node.name} verschieben`}>
           <MoveRight size={15} />
         </Button>
       ) : null}
       {onShare ? (
-        <Button variant="ghost" size="icon" onClick={() => onShare(node)} aria-label={`Share ${node.name}`}>
+        <Button variant="ghost" size="icon" onClick={() => onShare(node)} aria-label={`${node.name} freigeben`}>
           <Share2 size={15} />
         </Button>
       ) : null}
       {onDelete ? (
-        <Button variant="ghost" size="icon" onClick={() => onDelete(node)} aria-label={`Delete ${node.name}`}>
+        <Button variant="ghost" size="icon" onClick={() => onDelete(node)} aria-label={`${node.name} löschen`}>
           <Trash2 size={15} />
         </Button>
       ) : null}
@@ -105,7 +105,7 @@ export function FileList({
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/20 p-2">
         <div className="flex items-center gap-2 text-sm">
           <label htmlFor="sort-key" className="text-zinc-300">
-            Sort
+            Sortierung
           </label>
           <select
             id="sort-key"
@@ -114,17 +114,17 @@ export function FileList({
             className="rounded-lg border border-white/15 bg-black/20 px-2 py-1 text-zinc-100"
           >
             <option value="name">Name</option>
-            <option value="updated_at">Date</option>
-            <option value="size">Size</option>
+            <option value="updated_at">Datum</option>
+            <option value="size">Größe</option>
           </select>
           <select
             value={sortDirection}
             onChange={(event) => onSortDirectionChange(event.target.value as SortDirection)}
             className="rounded-lg border border-white/15 bg-black/20 px-2 py-1 text-zinc-100"
-            aria-label="Sort direction"
+            aria-label="Sortierreihenfolge"
           >
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
+            <option value="asc">Aufsteigend</option>
+            <option value="desc">Absteigend</option>
           </select>
         </div>
 
@@ -133,7 +133,7 @@ export function FileList({
             variant={viewMode === 'list' ? 'default' : 'secondary'}
             size="sm"
             onClick={() => onViewModeChange('list')}
-            aria-label="List view"
+            aria-label="Listenansicht"
           >
             <List size={15} />
           </Button>
@@ -141,7 +141,7 @@ export function FileList({
             variant={viewMode === 'grid' ? 'default' : 'secondary'}
             size="sm"
             onClick={() => onViewModeChange('grid')}
-            aria-label="Grid view"
+            aria-label="Kachelansicht"
           >
             <Grid3X3 size={15} />
           </Button>
@@ -154,9 +154,9 @@ export function FileList({
             <thead className="bg-white/5 text-zinc-300">
               <tr>
                 <th className="px-3 py-2 text-left">Name</th>
-                <th className="px-3 py-2 text-left">Updated</th>
-                <th className="px-3 py-2 text-left">Size</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2 text-left">Aktualisiert</th>
+                <th className="px-3 py-2 text-left">Größe</th>
+                <th className="px-3 py-2 text-right">Aktionen</th>
               </tr>
             </thead>
             <tbody>
@@ -164,7 +164,7 @@ export function FileList({
                 <tr
                   key={node.id}
                   tabIndex={0}
-                  className="border-t border-white/10 text-zinc-100 hover:bg-white/5 focus-visible:bg-white/10 focus-visible:outline-none"
+                  className="group border-t border-white/10 text-zinc-100 hover:bg-white/5 focus-visible:bg-white/10 focus-visible:outline-none"
                   onDoubleClick={() => {
                     if (node.type === 'folder' && onOpenFolder) {
                       onOpenFolder(node);
@@ -207,7 +207,7 @@ export function FileList({
           {sorted.map((node) => (
             <div
               key={node.id}
-              className="rounded-xl border border-white/10 bg-black/20 p-3 transition hover:bg-white/5"
+              className="group rounded-xl border border-white/10 bg-black/20 p-3 transition-all duration-200 hover:bg-white/5"
               tabIndex={0}
               onDoubleClick={() => {
                 if (node.type === 'folder' && onOpenFolder) {
@@ -232,7 +232,7 @@ export function FileList({
                 <span className="truncate text-sm font-medium">{node.name}</span>
               </button>
               <p className="text-xs text-zinc-400">{formatDate(node.updated_at)}</p>
-              <p className="text-xs text-zinc-400">{node.type === 'folder' ? 'Folder' : formatBytes(node.size)}</p>
+              <p className="text-xs text-zinc-400">{node.type === 'folder' ? 'Ordner' : formatBytes(node.size)}</p>
               <div className="mt-2">{renderActions(node)}</div>
             </div>
           ))}
@@ -241,7 +241,7 @@ export function FileList({
 
       {sorted.length === 0 ? (
         <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-10 text-center text-sm text-zinc-400">
-          No files found.
+          Keine Dateien gefunden.
         </div>
       ) : null}
     </div>

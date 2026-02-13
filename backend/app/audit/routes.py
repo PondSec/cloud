@@ -86,6 +86,10 @@ def _filtered_query():
 @audit_bp.before_request
 @jwt_required()
 def _guard_admin():
+    # CORS preflight requests do not carry JWT and must pass untouched.
+    if request.method == "OPTIONS":
+        return None
+
     user = current_user(required=True)
     assert user is not None
     if not user.is_admin:

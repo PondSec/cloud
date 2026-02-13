@@ -25,7 +25,7 @@ export function CommandPalette({ visible, onClose, commands }: CommandPalettePro
           autoFocus
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Type a command"
+          placeholder="Befehl eingeben"
           style={{ width: '100%', borderRadius: 0, border: 'none', borderBottom: '1px solid var(--border)' }}
         />
         <div style={{ maxHeight: 360, overflow: 'auto' }}>

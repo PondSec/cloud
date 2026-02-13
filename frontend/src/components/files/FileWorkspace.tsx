@@ -18,6 +18,7 @@ import { useUiPrefs } from '@/contexts/UiPrefsContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { api, toApiMessage } from '@/lib/api';
 import { clearAuthSession } from '@/lib/auth-storage';
+import { BRAND } from '@/lib/brand';
 import type { FileNode, FolderTreeNode } from '@/types/api';
 
 interface FileWorkspaceProps {
@@ -106,7 +107,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
   const folderIndex = useMemo(() => indexFolders(treeQuery.data ?? []), [treeQuery.data]);
 
   const breadcrumbs = useMemo(() => {
-    const trail: Array<{ id: number | null; label: string }> = [{ id: null, label: 'Root' }];
+    const trail: Array<{ id: number | null; label: string }> = [{ id: null, label: 'Start' }];
 
     let cursor = currentParentId;
     const stack: Array<{ id: number; label: string }> = [];
@@ -122,7 +123,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
   }, [currentParentId, folderIndex]);
 
   const isFolderViewActive = currentParentId !== null;
-  const activeFolderName = currentParentId === null ? null : (folderIndex.get(currentParentId)?.name ?? 'Folder');
+  const activeFolderName = currentParentId === null ? null : (folderIndex.get(currentParentId)?.name ?? 'Ordner');
 
   const invalidate = async () => {
     await Promise.all([
@@ -135,7 +136,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
   const createFolderMutation = useMutation({
     mutationFn: (name: string) => api.files.createFolder(name, currentParentId),
     onSuccess: async () => {
-      toast.success('Folder created');
+      toast.success('Ordner erstellt');
       await invalidate();
     },
     onError: (error) => toast.error(toApiMessage(error)),
@@ -153,7 +154,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
     mutationFn: ({ nodeId, payload }: { nodeId: number; payload: { name?: string; parent_id?: number | null } }) =>
       api.files.update(nodeId, payload),
     onSuccess: async () => {
-      toast.success('Item updated');
+      toast.success('Eintrag aktualisiert');
       await invalidate();
     },
     onError: (error) => toast.error(toApiMessage(error)),
@@ -162,7 +163,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
   const deleteMutation = useMutation({
     mutationFn: (nodeId: number) => api.files.remove(nodeId),
     onSuccess: async () => {
-      toast.success('Item deleted');
+      toast.success('Eintrag gelöscht');
       await invalidate();
     },
     onError: (error) => toast.error(toApiMessage(error)),
@@ -181,7 +182,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
     showOverview && !isFolderViewActive && (filesQuery.data?.length ?? 0) === 0 && localSearch.trim() === '';
 
   const handleCreateFolder = async () => {
-    const name = window.prompt('Folder name');
+    const name = window.prompt('Ordnername');
     if (!name) {
       return;
     }
@@ -192,11 +193,11 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
     for (const file of files) {
       await uploadMutation.mutateAsync(file);
     }
-    toast.success(`${files.length} file(s) uploaded`);
+    toast.success(`${files.length} Datei(en) hochgeladen`);
   };
 
   const handleRename = async (node: Pick<FileNode, 'id' | 'name'>) => {
-    const name = window.prompt('New name', node.name);
+    const name = window.prompt('Neuer Name', node.name);
     if (!name || name === node.name) {
       return;
     }
@@ -204,7 +205,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
   };
 
   const handleDelete = async (node: Pick<FileNode, 'id' | 'name' | 'type' | 'parent_id'>) => {
-    if (!window.confirm(`Delete ${node.name}? This cannot be undone.`)) {
+    if (!window.confirm(`${node.name} wirklich löschen? Dieser Schritt kann nicht rückgängig gemacht werden.`)) {
       return;
     }
 
@@ -222,19 +223,19 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
     {
       icon: <Upload size={16} />,
       color: 'blue',
-      label: 'Upload',
+      label: 'Hochladen',
       onClick: () => hiddenUploadRef.current?.click(),
     },
     {
       icon: <FolderPlus size={16} />,
       color: 'green',
-      label: 'Folder',
+      label: 'Ordner',
       onClick: handleCreateFolder,
     },
     {
       icon: <RefreshCw size={16} />,
       color: 'indigo',
-      label: 'Refresh',
+      label: 'Aktualisieren',
       onClick: () => {
         void invalidate();
       },
@@ -272,9 +273,9 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
 
       <section className="relative flex-1 overflow-hidden rounded-2xl border border-white/10 bg-black/20">
         <div className="flex h-full flex-col overflow-hidden">
-          <header className="space-y-3 border-b border-white/10 px-4 py-3">
+          <header className="group space-y-3 border-b border-white/10 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <nav className="flex flex-wrap items-center gap-2 text-sm text-zinc-300" aria-label="Breadcrumb">
+              <nav className="flex flex-wrap items-center gap-2 text-sm text-zinc-300" aria-label="Pfadnavigation">
                 {breadcrumbs.map((crumb) => (
                   <button
                     type="button"
@@ -289,7 +290,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
 
               <div className="flex items-center gap-2 text-xs">
                 <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-1 text-cyan-100">
-                  {user?.username}
+                  {user?.username} · {BRAND.fullName}
                 </span>
                 <Button
                   variant="secondary"
@@ -301,7 +302,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
                   }}
                 >
                   <LogOut size={14} className="mr-1" />
-                  Logout
+                  Abmelden
                 </Button>
               </div>
             </div>
@@ -311,23 +312,23 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
                 <Input
                   value={localSearch}
                   onChange={(event) => setLocalSearch(event.target.value)}
-                  placeholder={isFolderViewActive ? 'Filter this folder' : 'Filter current folder'}
-                  aria-label="Filter files"
+                  placeholder={isFolderViewActive ? 'Aktuellen Ordner filtern' : 'Dateien im aktuellen Bereich filtern'}
+                  aria-label="Dateien filtern"
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                 <Button variant="secondary" size="sm" onClick={() => hiddenUploadRef.current?.click()}>
-                  <Upload size={14} className="mr-1" /> Upload
+                  <Upload size={14} className="mr-1" /> Hochladen
                 </Button>
                 <Button variant="secondary" size="sm" onClick={handleCreateFolder}>
-                  <FolderPlus size={14} className="mr-1" /> New Folder
+                  <FolderPlus size={14} className="mr-1" /> Neuer Ordner
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => void invalidate()}>
-                  <RefreshCw size={14} className="mr-1" /> Refresh
+                  <RefreshCw size={14} className="mr-1" /> Aktualisieren
                 </Button>
                 {isFolderViewActive ? (
                   <Button variant="secondary" size="sm" onClick={() => setCurrentParentId(null)}>
-                    <X size={14} className="mr-1" /> Close Folder
+                    <X size={14} className="mr-1" /> Ordner schließen
                   </Button>
                 ) : null}
               </div>
@@ -361,13 +362,13 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
           {isFolderViewActive ? (
             <div className="border-b border-white/10 px-3 py-3">
               <div className="rounded-xl border border-cyan-300/25 bg-cyan-300/10 px-3 py-2">
-                <p className="text-xs uppercase tracking-wide text-cyan-100/80">Folder View</p>
+                <p className="text-xs uppercase tracking-wide text-cyan-100/80">Ordneransicht</p>
                 <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-zinc-100">
-                    Showing contents of <span className="font-semibold text-cyan-100">{activeFolderName}</span>
+                    Sie sehen den Inhalt von <span className="font-semibold text-cyan-100">{activeFolderName}</span>
                   </p>
                   <Button variant="secondary" size="sm" onClick={() => setCurrentParentId(null)}>
-                    <X size={14} className="mr-1" /> Back to Overview
+                    <X size={14} className="mr-1" /> Zur Übersicht
                   </Button>
                 </div>
               </div>
@@ -382,7 +383,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
             <div className="h-full overflow-auto pb-20 pr-1">
               {filesQuery.isLoading ? (
                 <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-10 text-center text-sm text-zinc-300">
-                  Loading files...
+                  Dateien werden geladen...
                 </div>
               ) : (
                 <FileList

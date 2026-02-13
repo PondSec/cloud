@@ -136,6 +136,10 @@ def _upsert_default_quota_for_user(user: User) -> ResourceQuota:
 @monitoring_bp.before_request
 @jwt_required()
 def _monitoring_guard():
+    # CORS preflight requests do not carry JWT and must pass untouched.
+    if request.method == "OPTIONS":
+        return None
+
     user = current_user(required=True)
     assert user is not None
     g.monitoring_user = user

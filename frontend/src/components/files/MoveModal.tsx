@@ -34,8 +34,8 @@ export function MoveModal({ open, node, tree, onClose, onConfirm }: MoveModalPro
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/45 p-4">
       <GlassSurface width={560} height="auto" borderRadius={20} className="w-full max-w-xl border border-white/20">
         <div className="w-full space-y-4 p-5">
-          <h3 className="text-lg font-semibold">Move “{node.name}”</h3>
-          <p className="text-sm text-zinc-300">Choose a destination folder.</p>
+          <h3 className="text-lg font-semibold">"{node.name}" verschieben</h3>
+          <p className="text-sm text-zinc-300">Wählen Sie den Zielordner aus.</p>
 
           <div className="max-h-64 space-y-1 overflow-auto rounded-xl border border-white/15 bg-black/20 p-2">
             <button
@@ -45,7 +45,7 @@ export function MoveModal({ open, node, tree, onClose, onConfirm }: MoveModalPro
               }`}
               onClick={() => setSelectedParentId(null)}
             >
-              Root
+              Start
             </button>
 
             {options.map((option) => (
@@ -65,7 +65,7 @@ export function MoveModal({ open, node, tree, onClose, onConfirm }: MoveModalPro
 
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>
-              Cancel
+              Abbrechen
             </Button>
             <Button
               onClick={async () => {
@@ -73,7 +73,7 @@ export function MoveModal({ open, node, tree, onClose, onConfirm }: MoveModalPro
                 onClose();
               }}
             >
-              Move
+              Verschieben
             </Button>
           </div>
         </div>

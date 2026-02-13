@@ -25,32 +25,32 @@ export function DockNav() {
   const items = useMemo(() => {
     const base: Array<{ label: string; path: string; icon: ReactNode }> = [];
 
-    base.push({ label: 'Home', path: '/app/home', icon: <Home size={18} /> });
+    base.push({ label: 'Start', path: '/app/home', icon: <Home size={18} /> });
 
     if (hasPermission(user, PERMISSIONS.FILE_READ)) {
-      base.push({ label: 'Files', path: '/app/files', icon: <FolderOpen size={18} /> });
-      base.push({ label: 'Recents', path: '/app/recents', icon: <History size={18} /> });
-      base.push({ label: 'Search', path: '/app/search', icon: <Search size={18} /> });
+      base.push({ label: 'Dateien', path: '/app/files', icon: <FolderOpen size={18} /> });
+      base.push({ label: 'Zuletzt', path: '/app/recents', icon: <History size={18} /> });
+      base.push({ label: 'Suche', path: '/app/search', icon: <Search size={18} /> });
     }
     if (hasPermission(user, PERMISSIONS.SHARE_VIEW_RECEIVED)) {
-      base.push({ label: 'Shared', path: '/app/shared', icon: <Share2 size={18} /> });
+      base.push({ label: 'Freigaben', path: '/app/shared', icon: <Share2 size={18} /> });
     }
     if (hasPermission(user, PERMISSIONS.FILE_READ) && hasPermission(user, PERMISSIONS.MEDIA_VIEW)) {
-      base.push({ label: 'Media', path: '/app/media', icon: <Image size={18} /> });
+      base.push({ label: 'Medien', path: '/app/media', icon: <Image size={18} /> });
     }
 
-    base.push({ label: 'Settings', path: '/app/settings', icon: <Settings size={18} /> });
+    base.push({ label: 'Einstellungen', path: '/app/settings', icon: <Settings size={18} /> });
 
     if (hasPermission(user, PERMISSIONS.IDE_USE)) {
-      base.push({ label: 'IDE', path: '/dev/workspaces', icon: <Code2 size={18} /> });
+      base.push({ label: 'Studio', path: '/dev/workspaces', icon: <Code2 size={18} /> });
     }
 
     if (hasAnyPermission(user, [PERMISSIONS.USER_MANAGE, PERMISSIONS.ROLE_MANAGE, PERMISSIONS.SERVER_SETTINGS])) {
-      base.push({ label: 'Admin', path: '/app/admin', icon: <Shield size={18} /> });
+      base.push({ label: 'Verwaltung', path: '/app/admin', icon: <Shield size={18} /> });
     }
 
     if (isAdmin(user)) {
-      base.push({ label: 'Monitoring', path: '/app/monitoring', icon: <Activity size={18} /> });
+      base.push({ label: 'System', path: '/app/monitoring', icon: <Activity size={18} /> });
     }
 
     return base.map((item) => ({

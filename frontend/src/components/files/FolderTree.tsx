@@ -45,7 +45,7 @@ function TreeItem({
           className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => onSelect(node.id)}
-          aria-label={`Open folder ${node.name}`}
+          aria-label={`Ordner ${node.name} öffnen`}
         >
           <ChevronRight size={14} className="opacity-60" />
           <Folder size={14} className="text-cyan-200" />
@@ -57,7 +57,7 @@ function TreeItem({
             <button
               type="button"
               className="rounded-md p-1 text-zinc-300 hover:bg-white/15 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-              aria-label={`Rename folder ${node.name}`}
+              aria-label={`Ordner ${node.name} umbenennen`}
               onClick={(event) => {
                 event.stopPropagation();
                 onRenameFolder(node);
@@ -70,7 +70,7 @@ function TreeItem({
             <button
               type="button"
               className="rounded-md p-1 text-zinc-300 hover:bg-white/15 hover:text-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
-              aria-label={`Move folder ${node.name}`}
+              aria-label={`Ordner ${node.name} verschieben`}
               onClick={(event) => {
                 event.stopPropagation();
                 onMoveFolder(node);
@@ -83,7 +83,7 @@ function TreeItem({
             <button
               type="button"
               className="rounded-md p-1 text-zinc-300 hover:bg-rose-500/20 hover:text-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
-              aria-label={`Delete folder ${node.name}`}
+              aria-label={`Ordner ${node.name} löschen`}
               onClick={(event) => {
                 event.stopPropagation();
                 onDeleteFolder(node);
@@ -126,7 +126,7 @@ export function FolderTree({
   return (
     <section className="relative flex h-full flex-col overflow-hidden">
       <div className="border-b border-white/10 px-3 py-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-300">Folders</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-300">Ordner</h2>
       </div>
 
       <div className="relative flex-1 overflow-auto px-2 py-2">
@@ -140,7 +140,7 @@ export function FolderTree({
               )}
               onClick={() => onSelect(null)}
             >
-              Root
+              Start
             </button>
           </li>
           {tree.map((node) => (

@@ -9,16 +9,16 @@ interface ActivityBarProps {
 }
 
 const items: Array<{ id: ActivityView; icon: ReactNode; label: string }> = [
-  { id: 'explorer', icon: <FileCode2 size={20} />, label: 'Explorer' },
-  { id: 'search', icon: <Search size={20} />, label: 'Search' },
-  { id: 'source-control', icon: <GitBranch size={20} />, label: 'Source Control' },
-  { id: 'run', icon: <Play size={20} />, label: 'Run and Debug' },
-  { id: 'extensions', icon: <Boxes size={20} />, label: 'Extensions' },
+  { id: 'explorer', icon: <FileCode2 size={20} />, label: 'Dateien' },
+  { id: 'search', icon: <Search size={20} />, label: 'Suche' },
+  { id: 'source-control', icon: <GitBranch size={20} />, label: 'Quellkontrolle' },
+  { id: 'run', icon: <Play size={20} />, label: 'Ausführen und Debuggen' },
+  { id: 'extensions', icon: <Boxes size={20} />, label: 'Erweiterungen' },
 ];
 
 export function ActivityBar({ active, onChange }: ActivityBarProps) {
   return (
-    <aside className="activity-bar" aria-label="Primary IDE sidebar">
+    <aside className="activity-bar" aria-label="Primäre IDE-Seitenleiste">
       {items.map((item) => (
         <button
           key={item.id}
@@ -32,7 +32,7 @@ export function ActivityBar({ active, onChange }: ActivityBarProps) {
         </button>
       ))}
       <div style={{ flex: 1 }} />
-      <button className="activity-btn" type="button" title="Debug stub" aria-label="Debug stub">
+      <button className="activity-btn" type="button" title="Debug-Bereich (in Vorbereitung)" aria-label="Debug-Bereich (in Vorbereitung)">
         <Bug size={20} />
       </button>
     </aside>

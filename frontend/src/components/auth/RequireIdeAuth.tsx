@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 import { getAccessToken } from '@/lib/auth-storage';
+import { BRAND } from '@/lib/brand';
 import { ensureIdeSessionFromCloud } from '@/lib/ide-bridge';
 import { getIdeToken } from '@/lib/ide-auth';
 
@@ -33,7 +34,7 @@ export function RequireIdeAuth() {
           setState('unauthenticated');
           return;
         }
-        setErrorMessage(error?.response?.data?.error || error?.message || 'IDE session bootstrap failed.');
+        setErrorMessage(error?.response?.data?.error || error?.message || 'Studio-Sitzung konnte nicht initialisiert werden.');
         setState('error');
       }
     };
@@ -50,8 +51,8 @@ export function RequireIdeAuth() {
       <div className="ide-root">
         <main className="workspace-page">
           <section className="card">
-            <h2 style={{ marginTop: 0 }}>Opening Cloud IDE</h2>
-            <p style={{ color: '#9f9f9f' }}>Using your existing Cloud session...</p>
+            <h2 style={{ marginTop: 0 }}>PondSec Studio wird geöffnet</h2>
+            <p style={{ color: '#9f9f9f' }}>Ihre bestehende {BRAND.product}-Sitzung wird übernommen...</p>
           </section>
         </main>
       </div>
@@ -67,10 +68,10 @@ export function RequireIdeAuth() {
       <div className="ide-root">
         <main className="workspace-page">
           <section className="card">
-            <h2 style={{ marginTop: 0 }}>Cloud IDE unavailable</h2>
+            <h2 style={{ marginTop: 0 }}>Studio aktuell nicht verfügbar</h2>
             <p style={{ color: '#ff7b7b' }}>{errorMessage}</p>
             <p style={{ color: '#9f9f9f' }}>
-              Check whether IDE services are running (`docker compose up -d workspace-image runner ide-backend`).
+              Prüfen Sie, ob die Studio-Dienste laufen (`docker compose up -d workspace-image runner ide-backend`).
             </p>
           </section>
         </main>

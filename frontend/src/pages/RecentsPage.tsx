@@ -20,9 +20,10 @@ export function RecentsPage() {
   return (
     <div className="relative h-full overflow-hidden p-4">
       <div className="h-full overflow-auto pb-20">
-        <h1 className="mb-4 text-2xl font-semibold">Recents</h1>
+        <h1 className="mb-1 text-2xl font-semibold">Zuletzt genutzt</h1>
+        <p className="mb-4 text-sm text-zinc-300">Arbeiten Sie genau dort weiter, wo Sie aufgehört haben.</p>
         {query.isLoading ? (
-          <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">Loading...</div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">Wird geladen...</div>
         ) : (
           <FileList
             files={query.data ?? []}

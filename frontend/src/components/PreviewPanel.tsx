@@ -42,10 +42,10 @@ export function PreviewPanel({ workspaceId, token, port, onStartPreview, onToggl
           setHint('');
           return;
         }
-        setHint('Preview is not running. Start it with the play button.');
+        setHint('Die Vorschau läuft noch nicht. Starten Sie sie mit der Play-Taste.');
       } catch {
         if (!cancelled) {
-          setHint('Preview service unreachable. Start preview with play.');
+          setHint('Vorschau-Service nicht erreichbar. Bitte Vorschau mit Play starten.');
         }
       }
     };
@@ -63,7 +63,7 @@ export function PreviewPanel({ workspaceId, token, port, onStartPreview, onToggl
   return (
     <div className="preview-pane" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="editor-toolbar">
-        <div className="row">Preview :{port}</div>
+        <div className="row">Vorschau :{port}</div>
         <div className="row">
           <button
             className="btn"
@@ -71,7 +71,7 @@ export function PreviewPanel({ workspaceId, token, port, onStartPreview, onToggl
               await onStartPreview();
               window.setTimeout(reloadIframe, 450);
             }}
-            title="Start preview server"
+            title="Vorschau-Server starten"
           >
             <Play size={14} />
           </button>
@@ -86,15 +86,15 @@ export function PreviewPanel({ workspaceId, token, port, onStartPreview, onToggl
           <a className="btn" href={previewUrl} target="_blank" rel="noreferrer">
             <ExternalLink size={14} />
           </a>
-          <button className="btn" onClick={onToggleVisible} title="Hide preview">
-            Hide
+          <button className="btn" onClick={onToggleVisible} title="Vorschau ausblenden">
+            Ausblenden
           </button>
         </div>
       </div>
       {hint ? (
         <div style={{ borderBottom: '1px solid var(--border)', padding: '6px 10px', color: '#f8d775', fontSize: 12 }}>{hint}</div>
       ) : null}
-      <iframe ref={iframeRef} title="Live preview" src={frameSrc} style={{ flex: 1, border: 'none', width: '100%' }} />
+      <iframe ref={iframeRef} title="Live-Vorschau" src={frameSrc} style={{ flex: 1, border: 'none', width: '100%' }} />
     </div>
   );
 }

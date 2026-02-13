@@ -23,7 +23,7 @@ function detectDefaults(): UiPreferences {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   return {
-    effectsQuality: isMobile || lowCpu ? 'medium' : 'high',
+    effectsQuality: isMobile || lowCpu ? 'low' : 'medium',
     animationsEnabled: !reducedMotion,
   };
 }
@@ -72,7 +72,7 @@ export function UiPrefsProvider({ children }: { children: React.ReactNode }) {
 export function useUiPrefs() {
   const context = useContext(UiPrefsContext);
   if (!context) {
-    throw new Error('useUiPrefs must be used within UiPrefsProvider');
+    throw new Error('useUiPrefs muss innerhalb von UiPrefsProvider verwendet werden');
   }
   return context;
 }

@@ -3,10 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from flask import has_request_context, request
-from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.exc import InvalidRequestError, OperationalError, ProgrammingError
 
 from ..extensions import db
 from ..models import AuditLog, User
+from .schema_compat import ensure_audit_schema_compat
 
 
 def _request_actor_ip() -> str | None:
@@ -58,6 +59,18 @@ def audit(
             db.session.add(entry)
             db.session.flush([entry])
     except (OperationalError, ProgrammingError):
+        # Try to heal legacy schemas (created_at/details/target_*) once.
+        try:
+            ensure_audit_schema_compat()
+        except Exception:
+            pass
+
+        # Remove failed entry from current session so outer commit
+        # cannot re-attempt the broken INSERT.
+        try:
+            db.session.expunge(entry)
+        except InvalidRequestError:
+            pass
         return None
 
     return entry

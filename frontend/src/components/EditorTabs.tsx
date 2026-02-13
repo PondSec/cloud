@@ -9,7 +9,7 @@ interface EditorTabsProps {
 
 export function EditorTabs({ files, activePath, onSelect, onClose }: EditorTabsProps) {
   return (
-    <div className="tabs" role="tablist" aria-label="Open files tabs">
+    <div className="tabs" role="tablist" aria-label="Geöffnete Dateireiter">
       {files.map((file) => (
         <div
           key={file.path}
@@ -25,14 +25,14 @@ export function EditorTabs({ files, activePath, onSelect, onClose }: EditorTabsP
           tabIndex={0}
         >
           <span>{file.path.split('/').at(-1)}</span>
-          {file.dirty && <span className="dirty" aria-label="unsaved changes" />}
+          {file.dirty && <span className="dirty" aria-label="Ungespeicherte Änderungen" />}
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
               onClose(file.path);
             }}
-            aria-label={`Close ${file.path}`}
+            aria-label={`${file.path} schließen`}
             style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer' }}
           >
             ×

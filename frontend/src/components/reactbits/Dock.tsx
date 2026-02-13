@@ -113,7 +113,7 @@ export default function Dock({
         className={`dock-panel ${className}`}
         style={{ height: panelHeight }}
         role="toolbar"
-        aria-label="Application dock"
+        aria-label="App-Dock"
       >
         {items.map((item, index) => (
           <DockItem

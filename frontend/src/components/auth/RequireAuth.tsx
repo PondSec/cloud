@@ -13,7 +13,7 @@ export function RequireAuth() {
   }
 
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center text-zinc-200">Authenticating...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-zinc-200">Authentifizierung läuft...</div>;
   }
 
   if (isError) {

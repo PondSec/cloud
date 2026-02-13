@@ -212,8 +212,8 @@ export function MediaPage() {
     <div className="h-full overflow-auto p-4">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Media</h1>
-          <p className="text-sm text-zinc-300">Gallery for images/videos and a music library with global playback.</p>
+          <h1 className="text-2xl font-semibold">Medien</h1>
+          <p className="text-sm text-zinc-300">Ihre Galerie für Bilder und Videos plus Musik mit nahtloser Wiedergabe.</p>
         </div>
 
         <button
@@ -222,7 +222,7 @@ export function MediaPage() {
           disabled={mediaQuery.isFetching}
         >
           <RefreshCw size={14} className={mediaQuery.isFetching ? 'animate-spin' : ''} />
-          Refresh
+          Aktualisieren
         </button>
       </div>
 
@@ -231,18 +231,18 @@ export function MediaPage() {
           className={`rounded-lg px-3 py-1.5 text-sm ${activeTab === 'gallery' ? 'bg-cyan-500/25 text-cyan-100' : 'text-zinc-200 hover:bg-white/10'}`}
           onClick={() => setActiveTab('gallery')}
         >
-          Gallery
+          Galerie
         </button>
         <button
           className={`rounded-lg px-3 py-1.5 text-sm ${activeTab === 'music' ? 'bg-cyan-500/25 text-cyan-100' : 'text-zinc-200 hover:bg-white/10'}`}
           onClick={() => setActiveTab('music')}
         >
-          Music
+          Musik
         </button>
       </div>
 
       {mediaQuery.isLoading ? (
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">Loading media library...</div>
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">Medien werden geladen...</div>
       ) : mediaQuery.isError ? (
         <div className="rounded-2xl border border-rose-400/40 bg-rose-500/10 p-4 text-sm text-rose-100">
           {toApiMessage(mediaQuery.error)}
@@ -250,11 +250,11 @@ export function MediaPage() {
       ) : activeTab === 'gallery' ? (
         galleryItems.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
-            No images or videos found in your cloud files.
+            Keine Bilder oder Videos in Ihren Cloud-Dateien gefunden.
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="px-1 text-xs uppercase tracking-[0.12em] text-zinc-400">Hover for tilt, click for preview</p>
+            <p className="px-1 text-xs uppercase tracking-[0.12em] text-zinc-400">Bewegen für Vorschau · Klicken zum Öffnen</p>
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
               <div className="grid justify-center gap-4 [grid-template-columns:repeat(auto-fill,minmax(220px,220px))]">
                 {galleryItems.map((item) => {
@@ -305,7 +305,7 @@ export function MediaPage() {
           </div>
         )
       ) : musicItems.length === 0 ? (
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">No music files found in your cloud.</div>
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">Keine Musikdateien in Ihrer Cloud gefunden.</div>
       ) : (
         <div className="space-y-2">
           {musicItems.map((track) => {
@@ -322,7 +322,7 @@ export function MediaPage() {
                   <button
                     className="rounded-lg border border-white/20 p-2 text-zinc-100 hover:bg-white/10"
                     onClick={() => playTrack(track, musicItems)}
-                    title={isCurrentPlaying ? 'Playing' : 'Play'}
+                    title={isCurrentPlaying ? 'Wird abgespielt' : 'Abspielen'}
                   >
                     {isCurrentPlaying ? <Pause size={14} /> : <Play size={14} />}
                   </button>
@@ -354,7 +354,7 @@ export function MediaPage() {
 
             <div className="max-h-[78vh] overflow-auto p-4">
               {previewLoading ? (
-                <div className="rounded-xl border border-white/10 bg-black/20 p-6 text-sm text-zinc-300">Loading preview...</div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-6 text-sm text-zinc-300">Vorschau wird geladen...</div>
               ) : activePreviewUrl ? (
                 isImage(activePreview) ? (
                   <img src={activePreviewUrl} alt={activePreview.name} className="mx-auto max-h-[72vh] w-auto rounded-xl object-contain" />
@@ -363,7 +363,7 @@ export function MediaPage() {
                 )
               ) : (
                 <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 p-4 text-sm text-rose-100">
-                  Preview could not be loaded for this file.
+                  Die Vorschau konnte für diese Datei nicht geladen werden.
                 </div>
               )}
             </div>

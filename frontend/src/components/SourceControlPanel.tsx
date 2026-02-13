@@ -23,10 +23,10 @@ export function SourceControlPanel(props: SourceControlPanelProps) {
     <div className="panel-content">
       <div className="row" style={{ marginBottom: 8 }}>
         <button className="btn" onClick={props.onInitRepo}>
-          Init
+          Initialisieren
         </button>
         <button className="btn" onClick={props.onRefresh}>
-          Refresh
+          Aktualisieren
         </button>
         <button className="btn" onClick={props.onPull}>
           Pull
@@ -48,7 +48,7 @@ export function SourceControlPanel(props: SourceControlPanelProps) {
           className="input"
           value={cloneBranch}
           onChange={(event) => setCloneBranch(event.target.value)}
-          placeholder="branch"
+          placeholder="Branch"
           style={{ width: 110 }}
         />
         <button
@@ -58,7 +58,7 @@ export function SourceControlPanel(props: SourceControlPanelProps) {
             props.onCloneRepo(cloneUrl.trim(), cloneBranch.trim() || undefined);
           }}
         >
-          Clone
+          Klonen
         </button>
       </div>
 
@@ -67,11 +67,11 @@ export function SourceControlPanel(props: SourceControlPanelProps) {
           className="input"
           value={stagePath}
           onChange={(event) => setStagePath(event.target.value)}
-          placeholder="file path"
+          placeholder="Dateipfad"
           style={{ flex: 1 }}
         />
         <button className="btn" onClick={() => stagePath.trim() && props.onStage(stagePath.trim())}>
-          Stage
+          Stagen
         </button>
         <button className="btn" onClick={() => stagePath.trim() && props.onUnstage(stagePath.trim())}>
           Unstage
@@ -83,7 +83,7 @@ export function SourceControlPanel(props: SourceControlPanelProps) {
           className="input"
           value={commitMessage}
           onChange={(event) => setCommitMessage(event.target.value)}
-          placeholder="Commit message"
+          placeholder="Commit-Nachricht"
           style={{ flex: 1 }}
         />
         <button className="btn primary" onClick={() => commitMessage.trim() && props.onCommit(commitMessage.trim())}>
@@ -92,10 +92,10 @@ export function SourceControlPanel(props: SourceControlPanelProps) {
       </div>
 
       <h4 style={{ margin: '8px 0 4px' }}>Status</h4>
-      <pre className="diff-view">{props.statusOutput || 'No git status yet.'}</pre>
+      <pre className="diff-view">{props.statusOutput || 'Noch kein Git-Status vorhanden.'}</pre>
 
       <h4 style={{ margin: '8px 0 4px' }}>Diff</h4>
-      <pre className="diff-view">{props.diffOutput || 'No diff loaded.'}</pre>
+      <pre className="diff-view">{props.diffOutput || 'Noch kein Diff geladen.'}</pre>
     </div>
   );
 }

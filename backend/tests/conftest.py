@@ -31,6 +31,11 @@ def app(tmp_path: Path):
             "ONLYOFFICE_TOKEN_SECRET": "test-onlyoffice-token-secret-at-least-32-bytes",
             "ONLYOFFICE_TOKEN_TTL_SECONDS": 3600,
             "ONLYOFFICE_JWT_SECRET": "",
+            "METRICS_SNAPSHOT_INTERVAL_SECONDS": 30,
+            "METRICS_RETENTION_DAYS": 7,
+            "DOCKER_ENABLED": False,
+            "RATE_LIMIT_MONITORING": "120/min",
+            "MONITORING_CACHE_TTL_SECONDS": 1,
         }
     )
 

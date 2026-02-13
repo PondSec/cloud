@@ -2,16 +2,27 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 
 import type {
   AdminSettings,
+  AuditLogEntry,
+  BackupJob,
+  BackupJobStatus,
+  BackupJobType,
+  ContainersResponse,
   ApiError,
   AuthResponse,
   ExternalShareLink,
   FileNode,
   FolderTreeNode,
   InternalShare,
+  MonitoringOverview,
+  NetworkResponse,
   OnlyOfficeSession,
   Permission,
+  ResourceQuota,
+  ResourceQuotaUsage,
+  RestorePoint,
   Role,
   ShareAccess,
+  StorageResponse,
   SharedWithMeItem,
   User,
 } from '@/types/api';
@@ -254,6 +265,181 @@ export const api = {
     },
     async deleteExternal(linkId: number): Promise<void> {
       await client.delete(`/shares/external/${linkId}`);
+    },
+  },
+  monitoring: {
+    async overview(): Promise<MonitoringOverview> {
+      const { data } = await client.get<MonitoringOverview>('/api/monitoring/overview');
+      return data;
+    },
+    async containers(): Promise<ContainersResponse> {
+      const { data } = await client.get<ContainersResponse>('/api/monitoring/containers');
+      return data;
+    },
+    async storage(): Promise<StorageResponse> {
+      const { data } = await client.get<StorageResponse>('/api/monitoring/storage');
+      return data;
+    },
+    async network(): Promise<NetworkResponse> {
+      const { data } = await client.get<NetworkResponse>('/api/monitoring/network');
+      return data;
+    },
+    async snapshots(hours = 24): Promise<{ hours: number; items: Array<Record<string, unknown>> }> {
+      const { data } = await client.get<{ hours: number; items: Array<Record<string, unknown>> }>(
+        `/api/monitoring/snapshots?hours=${hours}`,
+      );
+      return data;
+    },
+    async backups(params?: {
+      page?: number;
+      page_size?: number;
+      status?: BackupJobStatus;
+      type?: BackupJobType;
+      q?: string;
+      from?: string;
+      to?: string;
+    }): Promise<{ items: BackupJob[]; pagination: { page: number; page_size: number; total: number; total_pages: number } }> {
+      const search = new URLSearchParams();
+      if (params?.page) search.set('page', String(params.page));
+      if (params?.page_size) search.set('page_size', String(params.page_size));
+      if (params?.status) search.set('status', params.status);
+      if (params?.type) search.set('type', params.type);
+      if (params?.q) search.set('q', params.q);
+      if (params?.from) search.set('from', params.from);
+      if (params?.to) search.set('to', params.to);
+      const query = search.toString();
+      const { data } = await client.get<{ items: BackupJob[]; pagination: { page: number; page_size: number; total: number; total_pages: number } }>(
+        `/api/monitoring/backups${query ? `?${query}` : ''}`,
+      );
+      return data;
+    },
+    async backup(id: number): Promise<BackupJob> {
+      const { data } = await client.get<{ backup: BackupJob }>(`/api/monitoring/backups/${id}`);
+      return data.backup;
+    },
+    async restorePoints(params?: {
+      page?: number;
+      page_size?: number;
+      scope?: 'system' | 'project' | 'user';
+    }): Promise<{ items: RestorePoint[]; pagination: { page: number; page_size: number; total: number; total_pages: number } }> {
+      const search = new URLSearchParams();
+      if (params?.page) search.set('page', String(params.page));
+      if (params?.page_size) search.set('page_size', String(params.page_size));
+      if (params?.scope) search.set('scope', params.scope);
+      const query = search.toString();
+      const { data } = await client.get<{ items: RestorePoint[]; pagination: { page: number; page_size: number; total: number; total_pages: number } }>(
+        `/api/monitoring/restore-points${query ? `?${query}` : ''}`,
+      );
+      return data;
+    },
+    async createRestorePoint(payload: {
+      label: string;
+      source_backup_job_id?: number | null;
+      scope: 'system' | 'project' | 'user';
+      metadata?: Record<string, unknown>;
+      size_bytes?: number | null;
+    }): Promise<RestorePoint> {
+      const { data } = await client.post<{ restore_point: RestorePoint }>('/api/monitoring/restore-points', payload);
+      return data.restore_point;
+    },
+    async restore(restorePointId: number): Promise<{ supported: boolean; message: string; restore_point: RestorePoint }> {
+      const { data } = await client.post<{ supported: boolean; message: string; restore_point: RestorePoint }>(
+        `/api/monitoring/restore-points/${restorePointId}/restore`,
+      );
+      return data;
+    },
+    async quotas(): Promise<ResourceQuota[]> {
+      const { data } = await client.get<{ items: ResourceQuota[] }>('/api/monitoring/quotas');
+      return data.items;
+    },
+    async updateQuota(
+      userId: number,
+      payload: Partial<
+        Pick<
+          ResourceQuota,
+          | 'bytes_limit'
+          | 'max_running_containers'
+          | 'max_cpu_percent'
+          | 'max_ram_mb'
+          | 'monthly_bytes_in_limit'
+          | 'monthly_bytes_out_limit'
+          | 'monthly_bytes_in_used'
+          | 'monthly_bytes_out_used'
+        >
+      >,
+    ): Promise<ResourceQuota> {
+      const { data } = await client.put<{ quota: ResourceQuota }>(`/api/monitoring/quotas/${userId}`, payload);
+      return data.quota;
+    },
+    async quotaUsage(): Promise<{
+      items: ResourceQuotaUsage[];
+      container_metrics_available: boolean;
+      captured_at: string;
+    }> {
+      const { data } = await client.get<{
+        items: ResourceQuotaUsage[];
+        container_metrics_available: boolean;
+        captured_at: string;
+      }>('/api/monitoring/quotas/usage');
+      return data;
+    },
+  },
+  audit: {
+    async logs(params?: {
+      from?: string;
+      to?: string;
+      q?: string;
+      action?: string;
+      user_id?: number;
+      success?: boolean;
+      severity?: string;
+      page?: number;
+      page_size?: number;
+    }): Promise<{ items: AuditLogEntry[]; pagination: { page: number; page_size: number; total: number; total_pages: number } }> {
+      const search = new URLSearchParams();
+      if (params?.from) search.set('from', params.from);
+      if (params?.to) search.set('to', params.to);
+      if (params?.q) search.set('q', params.q);
+      if (params?.action) search.set('action', params.action);
+      if (params?.user_id !== undefined) search.set('user_id', String(params.user_id));
+      if (params?.success !== undefined) search.set('success', params.success ? 'true' : 'false');
+      if (params?.severity) search.set('severity', params.severity);
+      if (params?.page) search.set('page', String(params.page));
+      if (params?.page_size) search.set('page_size', String(params.page_size));
+
+      const query = search.toString();
+      const { data } = await client.get<{ items: AuditLogEntry[]; pagination: { page: number; page_size: number; total: number; total_pages: number } }>(
+        `/api/audit/logs${query ? `?${query}` : ''}`,
+      );
+      return data;
+    },
+    async actions(): Promise<string[]> {
+      const { data } = await client.get<{ items: string[] }>('/api/audit/actions');
+      return data.items;
+    },
+    async exportCsv(params?: {
+      from?: string;
+      to?: string;
+      q?: string;
+      action?: string;
+      user_id?: number;
+      success?: boolean;
+      severity?: string;
+    }): Promise<Blob> {
+      const search = new URLSearchParams();
+      if (params?.from) search.set('from', params.from);
+      if (params?.to) search.set('to', params.to);
+      if (params?.q) search.set('q', params.q);
+      if (params?.action) search.set('action', params.action);
+      if (params?.user_id !== undefined) search.set('user_id', String(params.user_id));
+      if (params?.success !== undefined) search.set('success', params.success ? 'true' : 'false');
+      if (params?.severity) search.set('severity', params.severity);
+      search.set('export', 'csv');
+      const query = search.toString();
+      const response = await client.get<Blob>(`/api/audit/logs?${query}`, {
+        responseType: 'blob',
+      });
+      return response.data;
     },
   },
   office: {

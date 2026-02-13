@@ -11,6 +11,7 @@ from ..common.errors import APIError
 from ..common.rate_limit import login_rate_limiter
 from ..common.rbac import current_user
 from ..extensions import db
+from ..monitoring.quotas import get_or_create_quota
 from ..models import AppSettings, Role, User
 
 
@@ -76,6 +77,7 @@ def register():
 
     db.session.add(user)
     db.session.flush()
+    get_or_create_quota(user)
     audit(
         action="auth.register",
         actor=actor if actor else user,
@@ -108,12 +110,31 @@ def login():
         current_app.config["LOGIN_RATE_LIMIT_WINDOW_SECONDS"],
         current_app.config["LOGIN_RATE_LIMIT_MAX_ATTEMPTS"],
     ):
+        audit(
+            action="auth.login_rate_limited",
+            actor=None,
+            entity_type="auth",
+            entity_id=username.lower(),
+            metadata={"username": username, "ip": remote_ip},
+            severity="warning",
+            success=False,
+        )
+        db.session.commit()
         raise APIError(429, "RATE_LIMITED", "Too many login attempts. Please try again later.")
 
     user = User.query.filter(func.lower(User.username) == username.lower()).one_or_none()
     if user is None or not user.is_active or not user.verify_password(password):
         login_rate_limiter.add_failure(rate_limit_key)
-        db.session.rollback()
+        audit(
+            action="auth.login_failed",
+            actor=user,
+            target_type="user",
+            target_id=str(user.id) if user is not None else None,
+            details={"username": username, "ip": remote_ip},
+            severity="warning",
+            success=False,
+        )
+        db.session.commit()
         raise APIError(401, "INVALID_CREDENTIALS", "Invalid username or password.")
 
     login_rate_limiter.clear(rate_limit_key)

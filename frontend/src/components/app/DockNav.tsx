@@ -1,7 +1,9 @@
 import {
+  Activity,
   Code2,
   Image,
   FolderOpen,
+  Home,
   History,
   Search,
   Settings,
@@ -13,7 +15,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import Dock from '@/components/reactbits/Dock';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { hasAnyPermission, hasPermission, PERMISSIONS } from '@/lib/permissions';
+import { hasAnyPermission, hasPermission, isAdmin, PERMISSIONS } from '@/lib/permissions';
 
 export function DockNav() {
   const navigate = useNavigate();
@@ -22,6 +24,8 @@ export function DockNav() {
 
   const items = useMemo(() => {
     const base: Array<{ label: string; path: string; icon: ReactNode }> = [];
+
+    base.push({ label: 'Home', path: '/app/home', icon: <Home size={18} /> });
 
     if (hasPermission(user, PERMISSIONS.FILE_READ)) {
       base.push({ label: 'Files', path: '/app/files', icon: <FolderOpen size={18} /> });
@@ -43,6 +47,10 @@ export function DockNav() {
 
     if (hasAnyPermission(user, [PERMISSIONS.USER_MANAGE, PERMISSIONS.ROLE_MANAGE, PERMISSIONS.SERVER_SETTINGS])) {
       base.push({ label: 'Admin', path: '/app/admin', icon: <Shield size={18} /> });
+    }
+
+    if (isAdmin(user)) {
+      base.push({ label: 'Monitoring', path: '/app/monitoring', icon: <Activity size={18} /> });
     }
 
     return base.map((item) => ({

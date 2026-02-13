@@ -3,7 +3,7 @@ from __future__ import annotations
 from flask import current_app
 
 from .extensions import db
-from .models import AppSettings, Permission, PermissionCode, Role
+from .models import AppSettings, Permission, PermissionCode, ResourceQuota, Role, User, utc_now
 
 
 def ensure_roles_and_permissions() -> None:
@@ -53,8 +53,25 @@ def ensure_settings() -> AppSettings:
     return settings
 
 
+def ensure_resource_quotas() -> None:
+    for user in User.query.all():
+        quota = ResourceQuota.query.filter_by(user_id=user.id).one_or_none()
+        if quota is None:
+            quota = ResourceQuota(
+                user_id=user.id,
+                bytes_limit=user.bytes_limit,
+                bytes_used=user.bytes_used,
+                usage_month=utc_now().strftime("%Y-%m"),
+            )
+            db.session.add(quota)
+        else:
+            quota.bytes_limit = user.bytes_limit
+            quota.bytes_used = user.bytes_used
+
+
 def bootstrap_defaults(commit: bool = False) -> None:
     ensure_roles_and_permissions()
     ensure_settings()
+    ensure_resource_quotas()
     if commit:
         db.session.commit()

@@ -124,6 +124,11 @@ class User(db.Model):
         uselist=False,
         cascade="all, delete-orphan",
     )
+    mail_accounts = db.relationship(
+        "MailAccount",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     def set_password(self, password: str) -> None:
         self.password_hash = pwd_hasher.hash(password)
@@ -175,6 +180,55 @@ class UserUiPreference(db.Model):
         return {
             "user_id": self.user_id,
             "payload": self.payload_json or {},
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class MailAccount(db.Model):
+    __tablename__ = "mail_accounts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    label = db.Column(db.String(120), nullable=False, default="")
+    email_address = db.Column(db.String(255), nullable=False)
+
+    imap_host = db.Column(db.String(255), nullable=False)
+    imap_port = db.Column(db.Integer, nullable=False, default=993)
+    imap_security = db.Column(db.String(16), nullable=False, default="ssl")
+    imap_username = db.Column(db.String(255), nullable=False)
+    imap_password_ciphertext = db.Column(db.Text, nullable=False, default="")
+
+    smtp_host = db.Column(db.String(255), nullable=False)
+    smtp_port = db.Column(db.Integer, nullable=False, default=465)
+    smtp_security = db.Column(db.String(16), nullable=False, default="ssl")
+    smtp_username = db.Column(db.String(255), nullable=False)
+    smtp_password_ciphertext = db.Column(db.Text, nullable=False, default="")
+
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = db.relationship("User", back_populates="mail_accounts")
+
+    __table_args__ = (db.UniqueConstraint("user_id", "email_address", name="uq_mail_accounts_user_email"),)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "label": (self.label or "").strip(),
+            "email_address": (self.email_address or "").strip(),
+            "imap_host": (self.imap_host or "").strip(),
+            "imap_port": int(self.imap_port or 0),
+            "imap_security": (self.imap_security or "ssl").strip(),
+            "imap_username": (self.imap_username or "").strip(),
+            "smtp_host": (self.smtp_host or "").strip(),
+            "smtp_port": int(self.smtp_port or 0),
+            "smtp_security": (self.smtp_security or "ssl").strip(),
+            "smtp_username": (self.smtp_username or "").strip(),
+            "is_active": bool(self.is_active),
+            "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
 

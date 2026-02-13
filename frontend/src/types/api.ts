@@ -95,6 +95,69 @@ export interface InventoryProContext {
   available: boolean;
 }
 
+export type MailSecurity = 'ssl' | 'starttls' | 'none';
+
+export interface MailContext {
+  available: boolean;
+  accounts_count: number;
+}
+
+export interface MailAccount {
+  id: number;
+  user_id: number;
+  label: string;
+  email_address: string;
+  imap_host: string;
+  imap_port: number;
+  imap_security: MailSecurity;
+  imap_username: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_security: MailSecurity;
+  smtp_username: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Mailbox {
+  name: string;
+}
+
+export interface MailboxStatus extends Mailbox {
+  messages: number | null;
+  unseen: number | null;
+}
+
+export interface MailMessageSummary {
+  uid: string;
+  subject: string;
+  from_name: string;
+  from_email: string;
+  date: string | null;
+  seen: boolean;
+  size: number | null;
+}
+
+export interface MailAddress {
+  name: string;
+  email: string;
+}
+
+export interface MailMessageDetail {
+  uid: string;
+  mailbox: string;
+  subject: string;
+  from: MailAddress;
+  to: MailAddress[];
+  cc: MailAddress[];
+  date: string | null;
+  seen: boolean;
+  size: number | null;
+  body_text: string;
+  body_html: string;
+}
+
 export type DockPosition = 'bottom' | 'left' | 'right';
 
 export interface UiPreferences {

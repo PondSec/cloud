@@ -13,11 +13,12 @@ from .audit import audit_bp
 from .auth import auth_bp
 from .bootstrap import bootstrap_defaults
 from .common.errors import error_payload, register_error_handlers
-from .common.schema_compat import ensure_audit_schema_compat, ensure_inventorypro_schema_compat
+from .common.schema_compat import ensure_audit_schema_compat, ensure_inventorypro_schema_compat, ensure_mail_schema_compat
 from .config import Config
 from .extensions import cors, db, jwt, migrate
 from .files import files_bp
 from .integration import integration_bp
+from .mail import mail_bp
 from .monitoring import monitoring_bp
 from .monitoring.snapshots import start_snapshot_scheduler
 from .office import office_bp
@@ -62,6 +63,7 @@ def create_app(config_override: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(public_shares_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(integration_bp)
+    app.register_blueprint(mail_bp)
     app.register_blueprint(monitoring_bp)
     app.register_blueprint(audit_bp)
 
@@ -75,6 +77,7 @@ def create_app(config_override: dict[str, Any] | None = None) -> Flask:
         try:
             ensure_inventorypro_schema_compat()
             ensure_audit_schema_compat()
+            ensure_mail_schema_compat()
             bootstrap_defaults(commit=True)
         except (OperationalError, ProgrammingError):
             db.session.rollback()

@@ -24,6 +24,7 @@ ALLOWED_DOCK_PATHS = [
     "/app/recents",
     "/app/shared",
     "/app/media",
+    "/app/email",
     "/dev/workspaces",
     "/app/admin",
     "/app/monitoring",

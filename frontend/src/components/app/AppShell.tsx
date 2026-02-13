@@ -29,6 +29,7 @@ export function AppShell() {
     if (location.pathname.startsWith('/app/recents')) return 'Zuletzt';
     if (location.pathname.startsWith('/app/shared')) return 'Freigaben';
     if (location.pathname.startsWith('/app/media')) return 'Medien';
+    if (location.pathname.startsWith('/app/email')) return 'Email';
     if (location.pathname.startsWith('/app/settings')) return 'Einstellungen';
     if (location.pathname.startsWith('/app/admin')) return 'Verwaltung';
     if (location.pathname.startsWith('/app/monitoring')) return 'System';

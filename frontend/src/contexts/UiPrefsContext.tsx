@@ -13,6 +13,7 @@ export const DEFAULT_DOCK_ORDER = [
   '/app/recents',
   '/app/shared',
   '/app/media',
+  '/app/email',
   '/dev/workspaces',
   '/app/admin',
   '/app/monitoring',

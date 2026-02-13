@@ -124,7 +124,7 @@ def backend_dependencies_installed(python_executable: Path) -> bool:
     check_cmd = [
         str(python_executable),
         "-c",
-        "import flask, flask_sqlalchemy, flask_migrate, flask_jwt_extended, flask_cors, dotenv, argon2, psutil, docker",
+        "import flask, flask_sqlalchemy, flask_migrate, flask_jwt_extended, flask_cors, dotenv, argon2, psutil, docker, cryptography",
     ]
     return subprocess.run(check_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
@@ -455,7 +455,7 @@ def start_frontend(port: int, backend_port: int, public_host: str) -> subprocess
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Start Cloud Workspace (backend + frontend).")
-    parser.add_argument("--backend-port", type=int, default=5002)
+    parser.add_argument("--backend-port", type=int, default=5001)
     parser.add_argument("--frontend-port", type=int, default=5173)
     parser.add_argument("--admin-user", default="admin")
     parser.add_argument("--admin-password", default="admin123")

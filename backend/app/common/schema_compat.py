@@ -137,3 +137,22 @@ def ensure_audit_schema_compat() -> None:
                 connection.execute(text("CREATE INDEX IF NOT EXISTS ix_audit_logs_success ON audit_logs (success)"))
     except SQLAlchemyError:
         current_app.logger.warning("Audit schema compatibility patch failed", exc_info=True)
+
+
+def ensure_mail_schema_compat() -> None:
+    """Best-effort creation for mail_accounts table (for installs without migrations)."""
+
+    bind = db.session.get_bind()
+    inspector = inspect(bind)
+    table_names = set(inspector.get_table_names())
+    if "mail_accounts" in table_names:
+        return
+
+    try:
+        from ..models import MailAccount
+
+        MailAccount.__table__.create(bind, checkfirst=True)
+        with bind.begin() as connection:
+            connection.execute(text("CREATE INDEX IF NOT EXISTS ix_mail_accounts_user_id ON mail_accounts (user_id)"))
+    except SQLAlchemyError:
+        current_app.logger.warning("Mail schema compatibility patch failed", exc_info=True)

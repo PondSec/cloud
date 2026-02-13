@@ -3,6 +3,7 @@ import {
   Activity,
   Boxes,
   Code2,
+  Mail,
   Image,
   FolderOpen,
   Home,
@@ -33,6 +34,13 @@ export function DockNav() {
     enabled: Boolean(user),
   });
   const inventoryProContext = inventoryProContextQuery.data;
+
+  const mailContextQuery = useQuery({
+    queryKey: ['mail', 'context'],
+    queryFn: api.mail.context,
+    enabled: Boolean(user),
+  });
+  const mailContext = mailContextQuery.data;
 
   const items = useMemo(() => {
     const dockOrder = Array.isArray(prefs.dockOrder) && prefs.dockOrder.length > 0 ? prefs.dockOrder : DEFAULT_DOCK_ORDER;
@@ -80,6 +88,13 @@ export function DockNav() {
         icon: <Image size={18} />,
         visible: hasPermission(user, PERMISSIONS.FILE_READ) && hasPermission(user, PERMISSIONS.MEDIA_VIEW),
         order: 60,
+      },
+      {
+        label: 'Email',
+        path: '/app/email',
+        icon: <Mail size={18} />,
+        visible: Boolean(mailContext?.available),
+        order: 65,
       },
       {
         label: 'Studio',
@@ -146,7 +161,15 @@ export function DockNav() {
         navigate(item.path);
       },
     }));
-  }, [inventoryProContext?.available, inventoryProContext?.launch_url, location.pathname, navigate, prefs.dockOrder, user]);
+  }, [
+    inventoryProContext?.available,
+    inventoryProContext?.launch_url,
+    location.pathname,
+    mailContext?.available,
+    navigate,
+    prefs.dockOrder,
+    user,
+  ]);
 
   const isVertical = prefs.dockPosition !== 'bottom';
   const wrapperClass = cn(

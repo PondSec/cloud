@@ -23,7 +23,7 @@ export function LoginPage() {
       setAuthSession(response.access_token, response.refresh_token);
       await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       const redirectPath = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname;
-      navigate(redirectPath ?? '/app/files', { replace: true });
+      navigate(redirectPath ?? '/app/home', { replace: true });
       toast.success('Welcome back');
     },
     onError: (error) => toast.error(toApiMessage(error)),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FolderOpen, Pencil, Play, Plus, Square, Trash2 } from 'lucide-react';
 
@@ -7,6 +7,12 @@ import { clearIdeToken } from '../lib/ide-auth';
 import type { Workspace } from '../lib/ide-types';
 
 type RuntimeState = Record<string, { running: boolean; loading: boolean }>;
+const MAX_AUTO_RETRIES = 12;
+
+function shouldRetryWorkspaceLoad(error: any): boolean {
+  const status = error?.response?.status;
+  return !status || status === 429 || status >= 500;
+}
 
 export function WorkspacesPage() {
   const navigate = useNavigate();
@@ -16,8 +22,19 @@ export function WorkspacesPage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [runtime, setRuntime] = useState<RuntimeState>({});
+  const retryTimerRef = useRef<number | null>(null);
 
-  async function refresh(): Promise<void> {
+  function clearRetryTimer(): void {
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }
+
+  async function refresh(options: { autoRetry?: boolean; attempt?: number } = {}): Promise<void> {
+    const attempt = options.attempt ?? 0;
+    clearRetryTimer();
+
     try {
       const list = await ideApi.workspace.list();
       setWorkspaces(list);
@@ -28,11 +45,24 @@ export function WorkspacesPage() {
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load workspaces');
-      if (err.response?.status === 401) {
+      const status = err?.response?.status;
+      if (status === 401) {
+        setError(err?.response?.data?.error || 'IDE session expired');
         clearIdeToken();
         navigate('/dev/workspaces', { replace: true });
+        return;
       }
+
+      if (options.autoRetry && shouldRetryWorkspaceLoad(err) && attempt < MAX_AUTO_RETRIES) {
+        const delayMs = Math.min(8000, 500 * 2 ** attempt);
+        setError('IDE API is starting... retrying automatically.');
+        retryTimerRef.current = window.setTimeout(() => {
+          void refresh({ autoRetry: true, attempt: attempt + 1 });
+        }, delayMs);
+        return;
+      }
+
+      setError(err?.response?.data?.error || 'Failed to load workspaces');
     }
   }
 
@@ -47,7 +77,10 @@ export function WorkspacesPage() {
   }
 
   useEffect(() => {
-    void refresh();
+    void refresh({ autoRetry: true, attempt: 0 });
+    return () => {
+      clearRetryTimer();
+    };
   }, []);
 
   const sorted = useMemo(

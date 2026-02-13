@@ -39,3 +39,8 @@ export function hasAllPermissions(user: User | null | undefined, permissions: Pe
   const set = userPermissions(user);
   return permissions.every((permission) => set.has(permission));
 }
+
+export function isAdmin(user: User | null | undefined): boolean {
+  if (!user) return false;
+  return user.roles.some((role) => role.name.toLowerCase() === 'admin');
+}

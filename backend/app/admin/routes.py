@@ -11,6 +11,7 @@ from ..common.errors import APIError
 from ..common.rbac import current_user, permission_required
 from ..common.storage import delete_storage_path
 from ..extensions import db
+from ..monitoring.quotas import get_or_create_quota, sync_quota_storage_usage
 from ..models import AppSettings, FileNode, FileNodeType, Permission, PermissionCode, Role, User
 
 
@@ -301,6 +302,7 @@ def create_user():
 
     db.session.add(user)
     db.session.flush()
+    get_or_create_quota(user)
     audit(
         action="admin.user_create",
         actor=actor,
@@ -357,6 +359,8 @@ def update_user(user_id: int):
         if not actor.has_permission(PermissionCode.ROLE_MANAGE.value):
             raise APIError(403, "FORBIDDEN", "Missing permission to change user roles.")
         user.roles = _resolve_roles(payload)
+
+    sync_quota_storage_usage(user)
 
     audit(
         action="admin.user_update",

@@ -36,6 +36,19 @@ python3 app.py
 - IDE workspace list: `http://127.0.0.1:5173/dev/workspaces`
 - IDE API: `http://127.0.0.1:18080`
 
+## How To Use Monitoring Dashboard
+
+1. Log in with an admin account.
+2. Open `Monitoring` from the bottom Dock (route: `http://127.0.0.1:5173/app/monitoring`).
+3. Use tabs for:
+   - Overview: host health KPIs + trends
+   - Containers: Docker runtime status (degraded message if unavailable)
+   - Storage / Network: capacity + interface trends from snapshots
+   - Audit Logs: filtered logs + CSV export
+   - Backups & Restore: backup jobs, logs modal, restore point records
+   - Quotas: storage/runtime/bandwidth limits and current usage
+4. Keep `Auto-refresh` enabled for live monitoring, or use `Refresh now` for manual pulls.
+
 You can open the IDE from:
 - Dock item `IDE`
 - Settings -> `Open Cloud IDE`

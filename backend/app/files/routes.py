@@ -13,6 +13,7 @@ from ..common.errors import APIError
 from ..common.rbac import can_manage_node, current_user, permission_required, scope_query_to_user
 from ..common.storage import delete_storage_path, resolve_storage_path, save_upload, validate_node_name
 from ..extensions import db
+from ..monitoring.quotas import sync_quota_storage_usage, track_bandwidth_usage
 from ..models import AppSettings, FileNode, FileNodeType, PermissionCode, User
 
 
@@ -235,8 +236,11 @@ def upload_file():
         storage_path=relative_path,
     )
     owner.bytes_used += file_size
+    sync_quota_storage_usage(owner)
     db.session.add(node)
     db.session.flush()
+
+    track_bandwidth_usage(user.id, bytes_in=file_size)
 
     audit(
         action="files.upload",
@@ -269,6 +273,16 @@ def download_file(node_id: int):
     abs_path = resolve_storage_path(storage_root, node.storage_path)
     if not abs_path.exists():
         raise APIError(404, "FILE_MISSING", "File data not found on disk.")
+
+    audit(
+        action="files.download",
+        actor=user,
+        target_type="file_node",
+        target_id=str(node.id),
+        details={"name": node.name, "size": node.size, "owner_id": node.owner_id},
+    )
+    track_bandwidth_usage(user.id, bytes_out=node.size)
+    db.session.commit()
 
     return send_file(abs_path, as_attachment=True, download_name=node.name, mimetype=node.mime)
 
@@ -308,15 +322,34 @@ def update_node(node_id: int):
 
     _assert_name_available(node.owner_id, target_parent_id, target_name, exclude_id=node.id)
 
+    old_name = node.name
+    old_parent_id = node.parent_id
+
     node.name = target_name
     node.parent_id = target_parent_id
 
+    name_changed = target_name != old_name
+    parent_changed = target_parent_id != old_parent_id
+    if name_changed and parent_changed:
+        action = "files.move_rename"
+    elif parent_changed:
+        action = "files.move"
+    elif name_changed:
+        action = "files.rename"
+    else:
+        action = "files.update"
+
     audit(
-        action="files.update",
+        action=action,
         actor=user,
         target_type="file_node",
         target_id=str(node.id),
-        details={"name": target_name, "parent_id": target_parent_id},
+        details={
+            "old_name": old_name,
+            "new_name": target_name,
+            "old_parent_id": old_parent_id,
+            "new_parent_id": target_parent_id,
+        },
     )
     db.session.commit()
 
@@ -348,6 +381,7 @@ def delete_node(node_id: int):
         owner = db.session.get(User, owner_id)
         if owner is not None:
             owner.bytes_used = max(0, owner.bytes_used - size)
+            sync_quota_storage_usage(owner)
 
     db.session.delete(node)
     audit(

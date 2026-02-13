@@ -26,6 +26,14 @@ def env_int(name: str, default: int) -> int:
         return default
 
 
+def env_str(name: str, default: str) -> str:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    cleaned = raw.strip()
+    return cleaned or default
+
+
 def env_origins() -> list[str]:
     raw_origins = os.getenv("FRONTEND_ORIGINS")
     if raw_origins:
@@ -66,6 +74,12 @@ class Config:
 
     LOGIN_RATE_LIMIT_WINDOW_SECONDS = env_int("LOGIN_RATE_LIMIT_WINDOW_SECONDS", 300)
     LOGIN_RATE_LIMIT_MAX_ATTEMPTS = env_int("LOGIN_RATE_LIMIT_MAX_ATTEMPTS", 5)
+
+    METRICS_SNAPSHOT_INTERVAL_SECONDS = max(5, env_int("METRICS_SNAPSHOT_INTERVAL_SECONDS", 30))
+    METRICS_RETENTION_DAYS = max(1, env_int("METRICS_RETENTION_DAYS", 7))
+    DOCKER_ENABLED = env_bool("DOCKER_ENABLED", True)
+    RATE_LIMIT_MONITORING = env_str("RATE_LIMIT_MONITORING", "60/min")
+    MONITORING_CACHE_TTL_SECONDS = max(1, env_int("MONITORING_CACHE_TTL_SECONDS", 3))
 
     MAX_CONTENT_LENGTH = env_int("MAX_CONTENT_LENGTH", 1024 * 1024 * 1024)
 

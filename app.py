@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import re
@@ -23,6 +24,7 @@ RUNTIME_DIR = ROOT_DIR / ".runtime"
 BACKEND_VENV_DIR = RUNTIME_DIR / "backend-venv"
 IDE_DOCKER_COMPOSE_FILE = ROOT_DIR / "docker-compose.yml"
 IDE_DOCKER_SERVICES = ["workspace-image", "runner", "ide-backend"]
+IDE_API_HEALTH_URL = "http://127.0.0.1:18080/health"
 MANAGED_ONLYOFFICE_CONTAINER = "cloud-onlyoffice"
 MANAGED_ONLYOFFICE_PORT = "8081"
 MANAGED_ONLYOFFICE_JWT_SECRET = "cloud-onlyoffice-jwt-secret-at-least-32-bytes"
@@ -85,7 +87,7 @@ def backend_dependencies_installed(python_executable: Path) -> bool:
     check_cmd = [
         str(python_executable),
         "-c",
-        "import flask, flask_sqlalchemy, flask_migrate, flask_jwt_extended, flask_cors, dotenv, argon2",
+        "import flask, flask_sqlalchemy, flask_migrate, flask_jwt_extended, flask_cors, dotenv, argon2, psutil, docker",
     ]
     return subprocess.run(check_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
 
@@ -126,6 +128,12 @@ def ensure_ide_services() -> bool:
     if proc.returncode != 0:
         print(f"[warn] Could not start IDE services: {proc.stderr.strip() or proc.stdout.strip()}")
         return False
+    try:
+        wait_for_http(IDE_API_HEALTH_URL, timeout_seconds=90)
+    except RuntimeError:
+        print(f"[warn] IDE API did not become ready in time at {IDE_API_HEALTH_URL}")
+        print(f"[hint] Check logs with: docker compose -f {IDE_DOCKER_COMPOSE_FILE} logs --tail=200 ide-backend runner")
+        return False
     return True
 
 
@@ -138,13 +146,23 @@ def seed_admin(python_executable: Path, username: str, password: str) -> None:
 
 def wait_for_http(url: str, timeout_seconds: int = 30) -> None:
     start = time.time()
+    last_error: str | None = None
     while time.time() - start < timeout_seconds:
         try:
             with urllib.request.urlopen(url, timeout=2) as response:
                 if 200 <= response.status < 500:
                     return
-        except (urllib.error.URLError, TimeoutError):
+        except (
+            urllib.error.URLError,
+            TimeoutError,
+            OSError,
+            http.client.HTTPException,
+        ) as error:
+            last_error = str(error) or error.__class__.__name__
             time.sleep(0.4)
+
+    if last_error:
+        raise RuntimeError(f"Timed out waiting for {url} (last error: {last_error})")
     raise RuntimeError(f"Timed out waiting for {url}")
 
 

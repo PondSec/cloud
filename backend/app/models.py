@@ -56,6 +56,24 @@ class ShareAccessLevel(str, enum.Enum):
     WRITE = "write"
 
 
+class BackupJobType(str, enum.Enum):
+    FULL = "full"
+    INCREMENTAL = "incremental"
+
+
+class BackupJobStatus(str, enum.Enum):
+    SCHEDULED = "scheduled"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class RestoreScope(str, enum.Enum):
+    SYSTEM = "system"
+    PROJECT = "project"
+    USER = "user"
+
+
 class Permission(db.Model):
     __tablename__ = "permissions"
 
@@ -98,6 +116,7 @@ class User(db.Model):
 
     roles = db.relationship("Role", secondary=user_roles, lazy="joined")
     files = db.relationship("FileNode", back_populates="owner", cascade="all, delete-orphan")
+    quota = db.relationship("ResourceQuota", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
     def set_password(self, password: str) -> None:
         self.password_hash = pwd_hasher.hash(password)
@@ -259,20 +278,215 @@ class AuditLog(db.Model):
     __tablename__ = "audit_logs"
 
     id = db.Column(db.Integer, primary_key=True)
+    ts = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, index=True)
     actor_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    actor_ip = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
     action = db.Column(db.String(128), nullable=False, index=True)
-    target_type = db.Column(db.String(64), nullable=True)
-    target_id = db.Column(db.String(128), nullable=True)
-    details = db.Column(db.JSON, nullable=True)
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    entity_type = db.Column(db.String(64), nullable=True, index=True)
+    entity_id = db.Column(db.String(128), nullable=True)
+    metadata_json = db.Column("metadata", db.JSON, nullable=True)
+    severity = db.Column(db.String(16), nullable=False, default="info", index=True)
+    success = db.Column(db.Boolean, nullable=False, default=True, index=True)
+
+    actor = db.relationship("User", foreign_keys=[actor_user_id])
+
+    __table_args__ = (
+        db.Index("ix_audit_logs_ts_actor", "ts", "actor_user_id"),
+        db.Index("ix_audit_logs_ts_action", "ts", "action"),
+    )
+
+    @property
+    def target_type(self) -> str | None:
+        return self.entity_type
+
+    @target_type.setter
+    def target_type(self, value: str | None) -> None:
+        self.entity_type = value
+
+    @property
+    def target_id(self) -> str | None:
+        return self.entity_id
+
+    @target_id.setter
+    def target_id(self, value: str | None) -> None:
+        self.entity_id = value
+
+    @property
+    def details(self) -> dict[str, Any] | None:
+        return self.metadata_json
+
+    @details.setter
+    def details(self, value: dict[str, Any] | None) -> None:
+        self.metadata_json = value
+
+    @property
+    def created_at(self) -> datetime:
+        return self.ts
+
+    @created_at.setter
+    def created_at(self, value: datetime) -> None:
+        self.ts = value
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
+            "ts": self.ts.isoformat(),
+            "created_at": self.ts.isoformat(),
             "actor_user_id": self.actor_user_id,
+            "actor_username": self.actor.username if self.actor is not None else None,
+            "actor_ip": self.actor_ip,
+            "user_agent": self.user_agent,
             "action": self.action,
-            "target_type": self.target_type,
-            "target_id": self.target_id,
-            "details": self.details,
+            "entity_type": self.entity_type,
+            "entity_id": self.entity_id,
+            "metadata": self.metadata_json or {},
+            "severity": self.severity,
+            "success": bool(self.success),
+        }
+
+
+class BackupJob(db.Model):
+    __tablename__ = "backup_jobs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.Enum(BackupJobType), nullable=False, default=BackupJobType.FULL, index=True)
+    status = db.Column(db.Enum(BackupJobStatus), nullable=False, default=BackupJobStatus.SCHEDULED, index=True)
+    started_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    finished_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    size_bytes = db.Column(db.BigInteger, nullable=True)
+    target = db.Column(db.String(512), nullable=False)
+    logs = db.Column(db.Text, nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    created_by = db.relationship("User", foreign_keys=[created_by_id])
+
+    __table_args__ = (
+        db.Index("ix_backup_jobs_status_started", "status", "started_at"),
+        db.Index("ix_backup_jobs_type_started", "type", "started_at"),
+    )
+
+    def to_dict(self, include_logs: bool = False) -> dict[str, Any]:
+        payload = {
+            "id": self.id,
+            "type": self.type.value,
+            "status": self.status.value,
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
+            "size_bytes": self.size_bytes,
+            "target": self.target,
+            "error_message": self.error_message,
+            "created_by_id": self.created_by_id,
             "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+        if include_logs:
+            payload["logs"] = self.logs or ""
+        return payload
+
+
+class RestorePoint(db.Model):
+    __tablename__ = "restore_points"
+
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    label = db.Column(db.String(255), nullable=False)
+    source_backup_job_id = db.Column(db.Integer, db.ForeignKey("backup_jobs.id", ondelete="SET NULL"), nullable=True)
+    scope = db.Column(db.Enum(RestoreScope), nullable=False, default=RestoreScope.SYSTEM, index=True)
+    metadata_json = db.Column("metadata", db.JSON, nullable=True)
+    size_bytes = db.Column(db.BigInteger, nullable=True)
+
+    source_backup_job = db.relationship("BackupJob", foreign_keys=[source_backup_job_id])
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "created_at": self.created_at.isoformat(),
+            "label": self.label,
+            "source_backup_job_id": self.source_backup_job_id,
+            "scope": self.scope.value,
+            "metadata": self.metadata_json or {},
+            "size_bytes": self.size_bytes,
+        }
+
+
+class ResourceQuota(db.Model):
+    __tablename__ = "resource_quotas"
+
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    bytes_limit = db.Column(db.BigInteger, nullable=False, default=0)
+    bytes_used = db.Column(db.BigInteger, nullable=False, default=0)
+    max_running_containers = db.Column(db.Integer, nullable=False, default=0)
+    max_cpu_percent = db.Column(db.Float, nullable=False, default=0.0)
+    max_ram_mb = db.Column(db.Integer, nullable=False, default=0)
+    monthly_bytes_in_limit = db.Column(db.BigInteger, nullable=False, default=0)
+    monthly_bytes_out_limit = db.Column(db.BigInteger, nullable=False, default=0)
+    monthly_bytes_in_used = db.Column(db.BigInteger, nullable=False, default=0)
+    monthly_bytes_out_used = db.Column(db.BigInteger, nullable=False, default=0)
+    usage_month = db.Column(db.String(7), nullable=False, default=lambda: utc_now().strftime("%Y-%m"))
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = db.relationship("User", back_populates="quota")
+
+    def to_dict(self, include_username: bool = True) -> dict[str, Any]:
+        return {
+            "user_id": self.user_id,
+            "username": self.user.username if include_username and self.user else None,
+            "bytes_limit": self.bytes_limit,
+            "bytes_used": self.bytes_used,
+            "max_running_containers": self.max_running_containers,
+            "max_cpu_percent": self.max_cpu_percent,
+            "max_ram_mb": self.max_ram_mb,
+            "monthly_bytes_in_limit": self.monthly_bytes_in_limit,
+            "monthly_bytes_out_limit": self.monthly_bytes_out_limit,
+            "monthly_bytes_in_used": self.monthly_bytes_in_used,
+            "monthly_bytes_out_used": self.monthly_bytes_out_used,
+            "usage_month": self.usage_month,
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class SystemMetricSnapshot(db.Model):
+    __tablename__ = "system_metric_snapshots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ts = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    cpu_percent = db.Column(db.Float, nullable=True)
+    memory_percent = db.Column(db.Float, nullable=True)
+    disk_percent = db.Column(db.Float, nullable=True)
+    disk_used_bytes = db.Column(db.BigInteger, nullable=True)
+    disk_total_bytes = db.Column(db.BigInteger, nullable=True)
+    disk_read_bytes = db.Column(db.BigInteger, nullable=True)
+    disk_write_bytes = db.Column(db.BigInteger, nullable=True)
+    net_bytes_sent = db.Column(db.BigInteger, nullable=True)
+    net_bytes_recv = db.Column(db.BigInteger, nullable=True)
+    load_1 = db.Column(db.Float, nullable=True)
+    load_5 = db.Column(db.Float, nullable=True)
+    load_15 = db.Column(db.Float, nullable=True)
+    interfaces_json = db.Column("interfaces", db.JSON, nullable=True)
+    provider_status_json = db.Column("provider_status", db.JSON, nullable=True)
+
+    __table_args__ = (db.Index("ix_metric_snapshots_ts_net", "ts", "net_bytes_sent", "net_bytes_recv"),)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "ts": self.ts.isoformat(),
+            "cpu_percent": self.cpu_percent,
+            "memory_percent": self.memory_percent,
+            "disk_percent": self.disk_percent,
+            "disk_used_bytes": self.disk_used_bytes,
+            "disk_total_bytes": self.disk_total_bytes,
+            "disk_read_bytes": self.disk_read_bytes,
+            "disk_write_bytes": self.disk_write_bytes,
+            "net_bytes_sent": self.net_bytes_sent,
+            "net_bytes_recv": self.net_bytes_recv,
+            "load_1": self.load_1,
+            "load_5": self.load_5,
+            "load_15": self.load_15,
+            "interfaces": self.interfaces_json or {},
+            "provider_status": self.provider_status_json or {},
         }

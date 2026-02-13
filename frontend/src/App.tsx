@@ -2,14 +2,17 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from '@/components/app/AppShell';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { RequireAdmin } from '@/components/auth/RequireAdmin';
 import { RequireIdeAuth } from '@/components/auth/RequireIdeAuth';
 import { RequirePermission } from '@/components/auth/RequirePermission';
 import { PERMISSIONS } from '@/lib/permissions';
 import { AdminPage } from '@/pages/AdminPage';
 import { FilesPage } from '@/pages/FilesPage';
+import { HomePage } from '@/pages/HomePage';
 import { IdePage } from '@/pages/IdePage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MediaPage } from '@/pages/MediaPage';
+import { MonitoringPage } from '@/pages/MonitoringPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 import { OfficeEditorPage } from '@/pages/OfficeEditorPage';
 import { RecentsPage } from '@/pages/RecentsPage';
@@ -25,7 +28,8 @@ export default function App() {
 
       <Route element={<RequireAuth />}>
         <Route path="/app" element={<AppShell />}>
-          <Route index element={<Navigate to="/app/files" replace />} />
+          <Route index element={<Navigate to="/app/home" replace />} />
+          <Route path="home" element={<HomePage />} />
           <Route
             path="files"
             element={
@@ -83,6 +87,14 @@ export default function App() {
               </RequirePermission>
             }
           />
+          <Route
+            path="monitoring"
+            element={
+              <RequireAdmin>
+                <MonitoringPage />
+              </RequireAdmin>
+            }
+          />
         </Route>
       </Route>
 
@@ -106,7 +118,7 @@ export default function App() {
       </Route>
 
       <Route path="/dev" element={<Navigate to="/dev/workspaces" replace />} />
-      <Route path="/" element={<Navigate to="/app/files" replace />} />
+      <Route path="/" element={<Navigate to="/app/home" replace />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

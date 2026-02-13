@@ -21,16 +21,16 @@ export function RunPanel({
     <div className="panel-content">
       <div className="row" style={{ marginBottom: 8 }}>
         <button className="btn primary" onClick={() => onRunTask('run')}>
-          Run
+          Starten
         </button>
         <button className="btn" onClick={() => onRunTask('build')}>
           Build
         </button>
         <button className="btn" onClick={() => onRunTask('test')}>
-          Test
+          Tests
         </button>
         <button className="btn" onClick={() => onRunTask('preview')}>
-          Preview
+          Vorschau
         </button>
       </div>
 
@@ -39,7 +39,7 @@ export function RunPanel({
           className="input"
           value={customCommand}
           onChange={(event) => setCustomCommand(event.target.value)}
-          placeholder="Custom command"
+          placeholder="Eigener Befehl"
           style={{ flex: 1 }}
         />
         <button
@@ -49,12 +49,12 @@ export function RunPanel({
             onRunTask('custom', customCommand.trim());
           }}
         >
-          Execute
+          Ausführen
         </button>
       </div>
 
       <div className="row" style={{ marginBottom: 8 }}>
-        <label htmlFor="preview-port">Preview Port</label>
+        <label htmlFor="preview-port">Vorschau-Port</label>
         <input
           id="preview-port"
           className="input"
@@ -63,12 +63,12 @@ export function RunPanel({
           style={{ width: 100 }}
         />
         <button className="btn" onClick={onTogglePreview}>
-          {previewVisible ? 'Hide Preview' : 'Show Preview'}
+          {previewVisible ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
         </button>
       </div>
 
       <p style={{ color: '#9b9b9b', fontSize: 12 }}>
-        Debug baseline: run Node with <code>--inspect</code> or Python with <code>debugpy</code> in custom commands.
+        Debug-Basis: Starten Sie Node mit <code>--inspect</code> oder Python mit <code>debugpy</code> über eigene Befehle.
       </p>
     </div>
   );

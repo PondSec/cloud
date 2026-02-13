@@ -1,5 +1,27 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+function defaultLanguageServers(overrides = {}) {
+    return {
+        typescript: true,
+        javascript: true,
+        python: true,
+        c: true,
+        cpp: true,
+        html: true,
+        css: true,
+        json: true,
+        yaml: true,
+        bash: true,
+        dockerfile: true,
+        php: true,
+        sql: true,
+        go: false,
+        rust: false,
+        lua: false,
+        java: false,
+        ...overrides,
+    };
+}
 export function templateDefaults(template) {
     switch (template) {
         case 'python':
@@ -12,7 +34,7 @@ export function templateDefaults(template) {
                     preview: 'python3 -m http.server 3000',
                 },
                 previewPort: 3000,
-                languageServers: { typescript: false, python: true, c: false },
+                languageServers: defaultLanguageServers({ typescript: false }),
                 allowEgress: true,
             };
         case 'node-ts':
@@ -25,7 +47,7 @@ export function templateDefaults(template) {
                     preview: 'npm run dev -- --host 0.0.0.0 --port 3000',
                 },
                 previewPort: 3000,
-                languageServers: { typescript: true, python: false, c: false },
+                languageServers: defaultLanguageServers({ python: false }),
                 allowEgress: true,
             };
         case 'c':
@@ -38,7 +60,7 @@ export function templateDefaults(template) {
                     preview: '',
                 },
                 previewPort: 0,
-                languageServers: { typescript: false, python: false, c: true },
+                languageServers: defaultLanguageServers({ typescript: false, python: false }),
                 allowEgress: false,
             };
         case 'web':
@@ -52,7 +74,7 @@ export function templateDefaults(template) {
                     preview: 'python3 -m http.server 3000',
                 },
                 previewPort: 3000,
-                languageServers: { typescript: true, python: false, c: false },
+                languageServers: defaultLanguageServers({ python: false }),
                 allowEgress: true,
             };
     }

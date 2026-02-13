@@ -25,7 +25,7 @@ function loadDocsApiScript(scriptUrl: string): Promise<void> {
     const existing = document.querySelector(`script[src="${scriptUrl}"]`) as HTMLScriptElement | null;
     if (existing) {
       existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error('Failed to load OnlyOffice script.')), { once: true });
+      existing.addEventListener('error', () => reject(new Error('OnlyOffice-Skript konnte nicht geladen werden.')), { once: true });
       return;
     }
 
@@ -33,7 +33,7 @@ function loadDocsApiScript(scriptUrl: string): Promise<void> {
     script.src = scriptUrl;
     script.async = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load OnlyOffice script.'));
+    script.onerror = () => reject(new Error('OnlyOffice-Skript konnte nicht geladen werden.'));
     document.head.appendChild(script);
   });
 
@@ -97,7 +97,7 @@ export function OfficeEditorPage() {
       return;
     }
     if (!window.DocsAPI?.DocEditor) {
-      toast.error('OnlyOffice client script loaded but DocsAPI is unavailable.');
+      toast.error('OnlyOffice wurde geladen, aber DocsAPI ist nicht verfügbar.');
       return;
     }
 
@@ -120,7 +120,7 @@ export function OfficeEditorPage() {
   if (!isValidFileId) {
     return (
       <div className="h-full p-4">
-        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-300">Invalid file id.</div>
+        <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-300">Ungültige Datei-ID.</div>
       </div>
     );
   }
@@ -131,13 +131,13 @@ export function OfficeEditorPage() {
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft size={14} className="mr-1" />
-            Back
+            Zurück
           </Button>
-          <p className="text-sm text-zinc-300">{sessionQuery.data ? sessionQuery.data.config.document.title : `File #${fileId}`}</p>
+          <p className="text-sm text-zinc-300">{sessionQuery.data ? sessionQuery.data.config.document.title : `Datei #${fileId}`}</p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => void sessionQuery.refetch()}>
           <RefreshCw size={14} className="mr-1" />
-          Reload Session
+          Sitzung neu laden
         </Button>
       </header>
 
@@ -145,20 +145,20 @@ export function OfficeEditorPage() {
         {sessionQuery.isLoading ? (
           <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-300">
             <Loader2 size={16} className="animate-spin" />
-            Loading Office session...
+            Office-Sitzung wird geladen...
           </div>
         ) : sessionQuery.isError ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-sm text-zinc-300">
             <p>{toApiMessage(sessionQuery.error)}</p>
             <Button variant="secondary" onClick={() => void sessionQuery.refetch()}>
-              Retry
+              Erneut versuchen
             </Button>
           </div>
         ) : scriptError ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-sm text-zinc-300">
             <p>{scriptError}</p>
             <p className="text-xs text-zinc-400">
-              Ensure OnlyOffice Document Server is running and reachable.
+              Stellen Sie sicher, dass der OnlyOffice Document Server erreichbar ist.
             </p>
             <Button
               variant="secondary"
@@ -168,13 +168,13 @@ export function OfficeEditorPage() {
                 void sessionQuery.refetch();
               }}
             >
-              Retry
+              Erneut versuchen
             </Button>
           </div>
         ) : !scriptReady ? (
           <div className="flex h-full items-center justify-center gap-2 text-sm text-zinc-300">
             <Loader2 size={16} className="animate-spin" />
-            Loading OnlyOffice editor...
+            OnlyOffice Editor wird geladen...
           </div>
         ) : (
           <div ref={hostRef} className="h-full w-full" />

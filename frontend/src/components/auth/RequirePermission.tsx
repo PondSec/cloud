@@ -21,7 +21,7 @@ export function RequirePermission({
   const location = useLocation();
 
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center text-zinc-200">Checking permissions...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-zinc-200">Berechtigungen werden geprüft...</div>;
   }
 
   const anyOfOk = anyOf.length === 0 || hasAnyPermission(user, anyOf);

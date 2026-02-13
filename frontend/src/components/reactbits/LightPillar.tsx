@@ -58,6 +58,9 @@ const LightPillar = ({
     if (isLowEndDevice && quality === 'high') effectiveQuality = 'medium';
     if (isMobile && quality !== 'low') effectiveQuality = 'low';
 
+    const surfacePixels = width * height;
+    const highPixelRatioCap = surfacePixels > 2_000_000 ? 1.0 : 1.25;
+
     const qualitySettings = {
       low: {
         iterations: 24,
@@ -65,24 +68,35 @@ const LightPillar = ({
         pixelRatio: 0.5,
         precision: 'mediump',
         stepMultiplier: 1.5,
+        targetFPS: 30,
       },
       medium: {
         iterations: 40,
         waveIterations: 2,
-        pixelRatio: 0.65,
+        pixelRatio: 0.72,
         precision: 'mediump',
         stepMultiplier: 1.2,
+        targetFPS: 45,
       },
       high: {
-        iterations: 80,
-        waveIterations: 4,
-        pixelRatio: Math.min(window.devicePixelRatio, 2),
-        precision: 'highp',
+        iterations: 52,
+        waveIterations: 3,
+        pixelRatio: Math.min(window.devicePixelRatio, highPixelRatioCap),
+        precision: 'mediump',
         stepMultiplier: 1.0,
+        targetFPS: 45,
       },
     };
 
     const settings = qualitySettings[effectiveQuality] || qualitySettings.medium;
+    let maxAdaptivePixelRatio = settings.pixelRatio;
+    let minAdaptivePixelRatio =
+      effectiveQuality === 'high'
+        ? Math.max(0.72, maxAdaptivePixelRatio * 0.72)
+        : effectiveQuality === 'medium'
+          ? Math.max(0.55, maxAdaptivePixelRatio * 0.78)
+          : Math.max(0.45, maxAdaptivePixelRatio * 0.85);
+    let adaptivePixelRatio = maxAdaptivePixelRatio;
 
     let renderer;
     try {
@@ -100,7 +114,7 @@ const LightPillar = ({
     }
 
     renderer.setSize(width, height);
-    renderer.setPixelRatio(settings.pixelRatio);
+    renderer.setPixelRatio(adaptivePixelRatio);
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -258,15 +272,44 @@ gl_FragColor = vec4(col * uIntensity, 1.0);
     }
 
     let lastTime = performance.now();
-    const targetFPS = effectiveQuality === 'low' ? 30 : 60;
+    let slowFrameStreak = 0;
+    let fastFrameStreak = 0;
+    const targetFPS = settings.targetFPS || 45;
     const frameTime = 1000 / targetFPS;
 
     const animate = (currentTime) => {
       if (!materialRef.current || !rendererRef.current || !sceneRef.current || !cameraRef.current) return;
+      if (document.hidden) {
+        lastTime = currentTime;
+        rafRef.current = requestAnimationFrame(animate);
+        return;
+      }
 
       const deltaTime = currentTime - lastTime;
 
       if (deltaTime >= frameTime) {
+        if (deltaTime > frameTime * 1.65) {
+          slowFrameStreak += 1;
+          fastFrameStreak = 0;
+        } else if (deltaTime < frameTime * 1.15) {
+          fastFrameStreak += 1;
+          slowFrameStreak = Math.max(0, slowFrameStreak - 1);
+        } else {
+          slowFrameStreak = Math.max(0, slowFrameStreak - 1);
+          fastFrameStreak = 0;
+        }
+
+        if (slowFrameStreak >= 6 && adaptivePixelRatio > minAdaptivePixelRatio + 0.01) {
+          adaptivePixelRatio = Math.max(minAdaptivePixelRatio, adaptivePixelRatio - 0.08);
+          rendererRef.current.setPixelRatio(adaptivePixelRatio);
+          slowFrameStreak = 0;
+          fastFrameStreak = 0;
+        } else if (fastFrameStreak >= 220 && adaptivePixelRatio < maxAdaptivePixelRatio - 0.01) {
+          adaptivePixelRatio = Math.min(maxAdaptivePixelRatio, adaptivePixelRatio + 0.04);
+          rendererRef.current.setPixelRatio(adaptivePixelRatio);
+          fastFrameStreak = 0;
+        }
+
         timeRef.current += 0.016 * rotationSpeed;
         const t = timeRef.current;
         materialRef.current.uniforms.uTime.value = t;
@@ -290,7 +333,19 @@ gl_FragColor = vec4(col * uIntensity, 1.0);
         if (!rendererRef.current || !materialRef.current || !containerRef.current) return;
         const newWidth = containerRef.current.clientWidth;
         const newHeight = containerRef.current.clientHeight;
+        const resizedSurface = newWidth * newHeight;
+        const resizedPixelRatioCap = resizedSurface > 2_000_000 ? 1.0 : 1.25;
+        maxAdaptivePixelRatio =
+          effectiveQuality === 'high' ? Math.min(window.devicePixelRatio, resizedPixelRatioCap) : settings.pixelRatio;
+        minAdaptivePixelRatio =
+          effectiveQuality === 'high'
+            ? Math.max(0.72, maxAdaptivePixelRatio * 0.72)
+            : effectiveQuality === 'medium'
+              ? Math.max(0.55, maxAdaptivePixelRatio * 0.78)
+              : Math.max(0.45, maxAdaptivePixelRatio * 0.85);
+        adaptivePixelRatio = Math.min(maxAdaptivePixelRatio, Math.max(minAdaptivePixelRatio, adaptivePixelRatio));
         rendererRef.current.setSize(newWidth, newHeight);
+        rendererRef.current.setPixelRatio(adaptivePixelRatio);
         materialRef.current.uniforms.uResolution.value.set(newWidth, newHeight);
       }, 150);
     };
@@ -304,6 +359,12 @@ gl_FragColor = vec4(col * uIntensity, 1.0);
       }
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
+      }
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      if (mouseMoveTimeout) {
+        clearTimeout(mouseMoveTimeout);
       }
       if (rendererRef.current) {
         rendererRef.current.dispose();

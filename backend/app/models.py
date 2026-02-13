@@ -117,6 +117,12 @@ class User(db.Model):
     roles = db.relationship("Role", secondary=user_roles, lazy="joined")
     files = db.relationship("FileNode", back_populates="owner", cascade="all, delete-orphan")
     quota = db.relationship("ResourceQuota", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    ui_preferences = db.relationship(
+        "UserUiPreference",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     def set_password(self, password: str) -> None:
         self.password_hash = pwd_hasher.hash(password)
@@ -149,6 +155,23 @@ class User(db.Model):
             "roles": [role.to_dict() for role in self.roles],
             "permissions": permission_codes,
             "created_at": self.created_at.isoformat(),
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class UserUiPreference(db.Model):
+    __tablename__ = "user_ui_preferences"
+
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    payload_json = db.Column("payload", db.JSON, nullable=False, default=dict)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = db.relationship("User", back_populates="ui_preferences")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "user_id": self.user_id,
+            "payload": self.payload_json or {},
             "updated_at": self.updated_at.isoformat(),
         }
 

@@ -527,14 +527,14 @@ export function GlobalMediaPlayerProvider({ children }: { children: ReactNode })
               <button
                 className="rounded-xl p-2 text-cyan-100 hover:bg-white/10"
                 onClick={togglePlayPause}
-                title={isPlaying ? 'Pause' : 'Play'}
+                title={isPlaying ? 'Pause' : 'Abspielen'}
               >
                 {isPlaying ? <Pause size={18} /> : <Music4 size={18} />}
               </button>
               <button
                 className="absolute -bottom-1 -right-1 rounded-md border border-white/20 bg-black/60 p-0.5 text-zinc-200"
                 onPointerDown={startDrag}
-                title="Move player"
+                title="Player verschieben"
               >
                 <GripVertical size={12} />
               </button>
@@ -560,28 +560,28 @@ export function GlobalMediaPlayerProvider({ children }: { children: ReactNode })
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-cyan-100">{currentTrack.name}</p>
                   <p className="text-xs text-zinc-300">
-                    {isLoading ? 'Loading...' : isPlaying ? 'Playing' : 'Paused'}
+                    {isLoading ? 'Lädt...' : isPlaying ? 'Wird abgespielt' : 'Pausiert'}
                   </p>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
                     className="rounded-lg border border-white/20 p-1.5 text-zinc-200 hover:bg-white/10"
                     onPointerDown={startDrag}
-                    title="Move player"
+                    title="Player verschieben"
                   >
                     <GripVertical size={14} />
                   </button>
                   <button
                     className="rounded-lg border border-white/20 p-1.5 text-zinc-200 hover:bg-white/10"
                     onClick={() => setCompactMode((value) => !value)}
-                    title={compactMode ? 'Pin open' : 'Compact mode'}
+                    title={compactMode ? 'Anheften' : 'Kompaktmodus'}
                   >
                     {compactMode ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
                   </button>
                   <button
                     className="rounded-lg border border-white/20 p-1.5 text-zinc-200 hover:bg-white/10"
                     onClick={stop}
-                    title="Stop"
+                    title="Stoppen"
                   >
                     <X size={14} />
                   </button>
@@ -593,14 +593,14 @@ export function GlobalMediaPlayerProvider({ children }: { children: ReactNode })
                   className="rounded-lg border border-white/20 p-2 text-zinc-200 hover:bg-white/10 disabled:opacity-40"
                   onClick={playPrev}
                   disabled={currentIndex <= 0}
-                  title="Previous"
+                  title="Vorheriger Titel"
                 >
                   <SkipBack size={15} />
                 </button>
                 <button
                   className="rounded-lg border border-cyan-300/30 bg-cyan-500/20 p-2 text-cyan-100 hover:bg-cyan-400/25"
                   onClick={togglePlayPause}
-                  title={isPlaying ? 'Pause' : 'Play'}
+                  title={isPlaying ? 'Pause' : 'Abspielen'}
                 >
                   {isPlaying ? <Pause size={15} /> : <Play size={15} />}
                 </button>
@@ -608,7 +608,7 @@ export function GlobalMediaPlayerProvider({ children }: { children: ReactNode })
                   className="rounded-lg border border-white/20 p-2 text-zinc-200 hover:bg-white/10 disabled:opacity-40"
                   onClick={playNext}
                   disabled={currentIndex >= queue.length - 1}
-                  title="Next"
+                  title="Nächster Titel"
                 >
                   <SkipForward size={15} />
                 </button>
@@ -654,7 +654,7 @@ export function GlobalMediaPlayerProvider({ children }: { children: ReactNode })
 export function useGlobalMediaPlayer(): GlobalMediaPlayerContextValue {
   const context = useContext(GlobalMediaPlayerContext);
   if (!context) {
-    throw new Error('useGlobalMediaPlayer must be used within GlobalMediaPlayerProvider');
+    throw new Error('useGlobalMediaPlayer muss innerhalb von GlobalMediaPlayerProvider verwendet werden');
   }
   return context;
 }

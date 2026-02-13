@@ -5,6 +5,7 @@ import { FolderOpen, Pencil, Play, Plus, Square, Trash2 } from 'lucide-react';
 import { ideApi } from '../lib/ide-api';
 import { clearIdeToken } from '../lib/ide-auth';
 import type { Workspace } from '../lib/ide-types';
+import { BRAND } from '@/lib/brand';
 
 type RuntimeState = Record<string, { running: boolean; loading: boolean }>;
 const MAX_AUTO_RETRIES = 12;
@@ -47,7 +48,7 @@ export function WorkspacesPage() {
     } catch (err: any) {
       const status = err?.response?.status;
       if (status === 401) {
-        setError(err?.response?.data?.error || 'IDE session expired');
+        setError(err?.response?.data?.error || 'Studio-Sitzung abgelaufen');
         clearIdeToken();
         navigate('/dev/workspaces', { replace: true });
         return;
@@ -55,14 +56,14 @@ export function WorkspacesPage() {
 
       if (options.autoRetry && shouldRetryWorkspaceLoad(err) && attempt < MAX_AUTO_RETRIES) {
         const delayMs = Math.min(8000, 500 * 2 ** attempt);
-        setError('IDE API is starting... retrying automatically.');
+        setError('Studio-Dienste starten... Verbindung wird automatisch wiederholt.');
         retryTimerRef.current = window.setTimeout(() => {
           void refresh({ autoRetry: true, attempt: attempt + 1 });
         }, delayMs);
         return;
       }
 
-      setError(err?.response?.data?.error || 'Failed to load workspaces');
+      setError(err?.response?.data?.error || 'Workspaces konnten nicht geladen werden');
     }
   }
 
@@ -93,19 +94,21 @@ export function WorkspacesPage() {
       <main className="workspace-page">
         <section className="card ide-workspaces-card">
           <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-            <h2 style={{ margin: 0 }}>Workspace Hub</h2>
+            <h2 style={{ margin: 0 }}>PondSec Studio</h2>
             <Link to="/app/files" className="btn">
-              Zur Cloud
+              Zu {BRAND.product}
             </Link>
           </div>
-          <p style={{ color: '#a9a9a9', marginTop: 0 }}>Erstellen, starten, umbenennen, löschen und öffnen.</p>
+          <p style={{ color: '#a9a9a9', marginTop: 0 }}>
+            Erstellen, starten und verwalten Sie Ihre Entwicklungsbereiche mit klarer Kontrolle.
+          </p>
 
           <div className="row" style={{ marginBottom: 12 }}>
             <input
               className="input"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Workspace Name"
+              placeholder="Workspace-Name"
               style={{ flex: 1 }}
             />
             <select className="select" value={template} onChange={(event) => setTemplate(event.target.value)}>
@@ -126,13 +129,13 @@ export function WorkspacesPage() {
                   await refresh();
                   navigate(`/dev/ide/${workspace.id}`);
                 } catch (err: any) {
-                  setError(err.response?.data?.error || 'Failed to create workspace');
+                  setError(err.response?.data?.error || 'Workspace konnte nicht erstellt werden');
                 } finally {
                   setBusy(false);
                 }
               }}
             >
-              <Plus size={14} /> Create
+              <Plus size={14} /> Erstellen
             </button>
           </div>
 
@@ -146,7 +149,7 @@ export function WorkspacesPage() {
                   <div className="row" style={{ justifyContent: 'space-between' }}>
                     <div style={{ fontWeight: 700 }}>{workspace.name}</div>
                     <span className={`ide-badge ${running ? 'ide-badge-running' : 'ide-badge-stopped'}`}>
-                      {runtimeLoading ? 'checking...' : running ? 'running' : 'stopped'}
+                      {runtimeLoading ? 'prüft...' : running ? 'aktiv' : 'gestoppt'}
                     </span>
                   </div>
                   <div style={{ color: '#a9a9a9', fontSize: 12, marginBottom: 8 }}>
@@ -154,22 +157,22 @@ export function WorkspacesPage() {
                   </div>
                   <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
                     <button className="btn" onClick={() => navigate(`/dev/ide/${workspace.id}`)}>
-                      <FolderOpen size={13} /> Open
+                      <FolderOpen size={13} /> Öffnen
                     </button>
                     <button
                       className="btn"
                       onClick={async () => {
-                        const next = window.prompt('New workspace name', workspace.name);
+                        const next = window.prompt('Neuer Workspace-Name', workspace.name);
                         if (!next || next === workspace.name) return;
                         try {
                           await ideApi.workspace.rename(workspace.id, next.trim());
                           await refresh();
                         } catch (err: any) {
-                          setError(err.response?.data?.error || 'Rename failed');
+                          setError(err.response?.data?.error || 'Umbenennen fehlgeschlagen');
                         }
                       }}
                     >
-                      <Pencil size={13} /> Rename
+                      <Pencil size={13} /> Umbenennen
                     </button>
                     <button
                       className="btn"
@@ -182,11 +185,11 @@ export function WorkspacesPage() {
                           }
                           await refreshRuntime(workspace.id);
                         } catch (err: any) {
-                          setError(err.response?.data?.error || (running ? 'Stop failed' : 'Start failed'));
+                          setError(err.response?.data?.error || (running ? 'Stop fehlgeschlagen' : 'Start fehlgeschlagen'));
                         }
                       }}
                     >
-                      {running ? <Square size={13} /> : <Play size={13} />} {running ? 'Stop' : 'Start'}
+                      {running ? <Square size={13} /> : <Play size={13} />} {running ? 'Stoppen' : 'Starten'}
                     </button>
                     <button
                       className="btn danger"
@@ -196,11 +199,11 @@ export function WorkspacesPage() {
                           await ideApi.workspace.delete(workspace.id);
                           await refresh();
                         } catch (err: any) {
-                          setError(err.response?.data?.error || 'Delete failed');
+                          setError(err.response?.data?.error || 'Löschen fehlgeschlagen');
                         }
                       }}
                     >
-                      <Trash2 size={13} /> Delete
+                      <Trash2 size={13} /> Löschen
                     </button>
                   </div>
                 </article>
@@ -210,7 +213,7 @@ export function WorkspacesPage() {
 
           <div className="row" style={{ marginTop: 10 }}>
             <button className="btn" onClick={() => void refresh()}>
-              Refresh
+              Aktualisieren
             </button>
             <button
               className="btn"
@@ -219,7 +222,7 @@ export function WorkspacesPage() {
                 void refresh();
               }}
             >
-              Reset IDE Session
+              Studio-Sitzung zurücksetzen
             </button>
           </div>
 

@@ -22,11 +22,53 @@ const languageByExt: Record<string, string> = {
   py: 'python',
   c: 'c',
   h: 'c',
+  cc: 'cpp',
+  cpp: 'cpp',
+  cxx: 'cpp',
+  hpp: 'cpp',
+  hh: 'cpp',
+  hxx: 'cpp',
+  go: 'go',
+  rs: 'rust',
+  java: 'java',
+  php: 'php',
+  lua: 'lua',
   json: 'json',
+  jsonc: 'json',
+  yml: 'yaml',
+  yaml: 'yaml',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'bash',
+  dockerfile: 'dockerfile',
+  sql: 'sql',
   md: 'markdown',
   html: 'html',
+  htm: 'html',
   css: 'css',
+  scss: 'css',
+  less: 'css',
 };
+
+const lspEnabledLanguages = new Set([
+  'typescript',
+  'javascript',
+  'python',
+  'c',
+  'cpp',
+  'html',
+  'css',
+  'json',
+  'yaml',
+  'bash',
+  'dockerfile',
+  'php',
+  'sql',
+  'go',
+  'rust',
+  'lua',
+  'java',
+]);
 
 const markerSeverity = {
   1: 8,
@@ -34,6 +76,54 @@ const markerSeverity = {
   3: 2,
   4: 1,
 } as const;
+
+const htmlSnippets: Array<{ label: string; insertText: string; detail: string }> = [
+  {
+    label: '!doctype',
+    insertText:
+      '<!doctype html>\n<html lang="en">\n<head>\n\t<meta charset="UTF-8" />\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0" />\n\t<title>${1:Document}</title>\n</head>\n<body>\n\t${0}\n</body>\n</html>',
+    detail: 'HTML-Grundgerüst',
+  },
+  {
+    label: 'script',
+    insertText: '<script src="${1:app.js}"></script>',
+    detail: 'Script-Tag',
+  },
+  {
+    label: 'link:css',
+    insertText: '<link rel="stylesheet" href="${1:styles.css}" />',
+    detail: 'Stylesheet-Link',
+  },
+  {
+    label: 'div.class',
+    insertText: '<div class="${1:container}">\n\t${0}\n</div>',
+    detail: 'Div mit Klasse',
+  },
+];
+
+const markdownSnippets: Array<{ label: string; insertText: string; detail: string }> = [
+  { label: '# heading', insertText: '# ${1:Titel}', detail: 'Überschrift 1' },
+  { label: '## heading', insertText: '## ${1:Untertitel}', detail: 'Überschrift 2' },
+  { label: 'code fence', insertText: '```$1\n$0\n```', detail: 'Codeblock' },
+  { label: 'table', insertText: '| ${1:Spalte} | ${2:Spalte} |\n| --- | --- |\n| ${3:Wert} | ${4:Wert} |', detail: 'Markdown-Tabelle' },
+];
+
+const voidHtmlTags = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
 
 export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorChange, onProblems }: EditorPaneProps) {
   const monacoRef = useRef<Monaco | null>(null);
@@ -44,6 +134,9 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
   const language = useMemo(() => {
     if (!activeFile) return 'plaintext';
     const ext = activeFile.path.split('.').at(-1)?.toLowerCase() || '';
+    if (!ext && activeFile.path.toLowerCase() === 'dockerfile') {
+      return 'dockerfile';
+    }
     return languageByExt[ext] || 'plaintext';
   }, [activeFile]);
 
@@ -52,7 +145,25 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
     if (!monaco) return;
 
     const disposables: monacoEditor.IDisposable[] = [];
-    const languages = ['typescript', 'javascript', 'python', 'c'] as const;
+    const languages = [
+      'typescript',
+      'javascript',
+      'python',
+      'c',
+      'cpp',
+      'html',
+      'css',
+      'json',
+      'yaml',
+      'bash',
+      'dockerfile',
+      'php',
+      'sql',
+      'go',
+      'rust',
+      'lua',
+      'java',
+    ] as const;
 
     for (const lang of languages) {
       disposables.push(
@@ -168,17 +279,86 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
       );
     }
 
+    disposables.push(
+      monaco.languages.registerCompletionItemProvider('html', {
+        triggerCharacters: ['<', '/', '.', ':'],
+        provideCompletionItems: (model, position) => {
+          const word = model.getWordUntilPosition(position);
+          const range = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn,
+          };
+
+          return {
+            suggestions: htmlSnippets.map((snippet) => ({
+              label: snippet.label,
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: snippet.insertText,
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              detail: snippet.detail,
+              range,
+            })),
+          };
+        },
+      }),
+    );
+
+    disposables.push(
+      monaco.languages.registerCompletionItemProvider('markdown', {
+        triggerCharacters: ['#', '|', '`'],
+        provideCompletionItems: (model, position) => {
+          const word = model.getWordUntilPosition(position);
+          const range = {
+            startLineNumber: position.lineNumber,
+            endLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endColumn: word.endColumn,
+          };
+
+          return {
+            suggestions: markdownSnippets.map((snippet) => ({
+              label: snippet.label,
+              kind: monaco.languages.CompletionItemKind.Snippet,
+              insertText: snippet.insertText,
+              insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+              detail: snippet.detail,
+              range,
+            })),
+          };
+        },
+      }),
+    );
+
     return () => {
       for (const d of disposables) d.dispose();
     };
   }, []);
 
   useEffect(() => {
-    if (!activeFile || !['typescript', 'javascript', 'python', 'c'].includes(language)) {
+    if (!activeFile || !lspEnabledLanguages.has(language)) {
       return;
     }
 
-    const lang = language as 'typescript' | 'javascript' | 'python' | 'c';
+    const lang = language as
+      | 'typescript'
+      | 'javascript'
+      | 'python'
+      | 'c'
+      | 'cpp'
+      | 'html'
+      | 'css'
+      | 'json'
+      | 'yaml'
+      | 'bash'
+      | 'dockerfile'
+      | 'php'
+      | 'sql'
+      | 'go'
+      | 'rust'
+      | 'lua'
+      | 'java';
     let client = lspClients.current.get(lang);
     if (!client) {
       client = new LspClient({ workspaceId, language: lang, token });
@@ -210,7 +390,7 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
   }, [activeFile?.path, workspaceId, language, token]);
 
   useEffect(() => {
-    if (!activeFile || !['typescript', 'javascript', 'python', 'c'].includes(language)) {
+    if (!activeFile || !lspEnabledLanguages.has(language)) {
       return;
     }
 
@@ -253,12 +433,79 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
           automaticLayout: true,
           smoothScrolling: true,
           scrollBeyondLastLine: false,
+          autoClosingBrackets: 'always',
+          autoClosingQuotes: 'always',
+          autoClosingDelete: 'always',
+          autoClosingOvertype: 'always',
+          autoSurround: 'languageDefined',
+          linkedEditing: true,
+          bracketPairColorization: { enabled: true },
+          guides: {
+            bracketPairs: true,
+            highlightActiveBracketPair: true,
+            indentation: true,
+            highlightActiveIndentation: true,
+          },
+          quickSuggestions: {
+            comments: true,
+            strings: true,
+            other: true,
+          },
+          suggestOnTriggerCharacters: true,
+          tabCompletion: 'on',
+          wordBasedSuggestions: 'currentDocument',
+          snippetSuggestions: 'inline',
+          acceptSuggestionOnEnter: 'on',
+          parameterHints: { enabled: true },
+          formatOnType: true,
+          formatOnPaste: true,
+          matchBrackets: 'always',
         }}
         onMount={(editor, monaco) => {
           editorRef.current = editor;
           monacoRef.current = monaco;
           editor.onDidChangeCursorPosition((event) => {
             onCursorChange(event.position.lineNumber, event.position.column);
+          });
+
+          editor.onDidChangeModelContent((event) => {
+            const model = editor.getModel();
+            if (!model || model.getLanguageId() !== 'html' || event.isFlush) {
+              return;
+            }
+
+            const change = event.changes.at(-1);
+            if (!change || change.text !== '>' || change.rangeLength !== 0) {
+              return;
+            }
+
+            const lineNumber = change.range.startLineNumber;
+            const columnAfter = change.range.startColumn + change.text.length;
+            const line = model.getLineContent(lineNumber);
+            const prefix = line.slice(0, columnAfter - 1);
+            const suffix = line.slice(columnAfter - 1);
+            const match = prefix.match(/<([A-Za-z][\w:-]*)(?:\s[^<>]*)?>$/);
+            if (!match) {
+              return;
+            }
+
+            const tag = (match[1] || '').toLowerCase();
+            if (!tag || voidHtmlTags.has(tag)) {
+              return;
+            }
+
+            if (new RegExp(`^\\s*</${tag}\\s*>`, 'i').test(suffix)) {
+              return;
+            }
+
+            editor.executeEdits('html-auto-close', [
+              {
+                range: new monaco.Range(lineNumber, columnAfter, lineNumber, columnAfter),
+                text: `</${tag}>`,
+                forceMoveMarkers: true,
+              },
+            ]);
+            editor.setPosition({ lineNumber, column: columnAfter });
           });
         }}
         onChange={(value) => onChange(value ?? '')}

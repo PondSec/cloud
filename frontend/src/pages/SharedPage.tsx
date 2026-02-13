@@ -10,6 +10,10 @@ import { api, toApiMessage } from '@/lib/api';
 import { isOnlyOfficeSupportedFileName } from '@/lib/utils';
 import type { FileNode, SharedWithMeItem } from '@/types/api';
 
+function accessLabel(access: 'read' | 'write'): string {
+  return access === 'write' ? 'Schreiben' : 'Lesen';
+}
+
 export function SharedPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -49,7 +53,7 @@ export function SharedPage() {
     mutationFn: ({ nodeId, payload }: { nodeId: number; payload: { name?: string; parent_id?: number | null } }) =>
       api.files.update(nodeId, payload),
     onSuccess: async () => {
-      toast.success('Item updated');
+      toast.success('Eintrag aktualisiert');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['files', 'list', 'shared', currentParentId] }),
         queryClient.invalidateQueries({ queryKey: ['shares', 'shared-with-me'] }),
@@ -61,7 +65,7 @@ export function SharedPage() {
   const deleteMutation = useMutation({
     mutationFn: (nodeId: number) => api.files.remove(nodeId),
     onSuccess: async () => {
-      toast.success('Item deleted');
+      toast.success('Eintrag gelöscht');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['files', 'list', 'shared', currentParentId] }),
         queryClient.invalidateQueries({ queryKey: ['shares', 'shared-with-me'] }),
@@ -72,10 +76,10 @@ export function SharedPage() {
 
   const selectedHeader = useMemo(() => {
     if (!selectedShare) {
-      return 'Choose a shared item on the left.';
+      return 'Wählen Sie links eine Freigabe aus.';
     }
-    const fromUser = selectedShare.share.created_by_username ?? `User #${selectedShare.share.created_by_id}`;
-    return `Shared by ${fromUser} (${selectedShare.share.access})`;
+    const fromUser = selectedShare.share.created_by_username ?? `Benutzer #${selectedShare.share.created_by_id}`;
+    return `Freigegeben von ${fromUser} (${accessLabel(selectedShare.share.access)})`;
   }, [selectedShare]);
 
   return (
@@ -83,8 +87,8 @@ export function SharedPage() {
       <div className="grid h-full gap-4 lg:grid-cols-[320px_1fr]">
         <aside className="overflow-auto rounded-2xl border border-white/10 bg-black/20 p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h1 className="text-lg font-semibold">Shared With Me</h1>
-            <Button variant="secondary" size="icon" onClick={() => void sharedQuery.refetch()} aria-label="Refresh shared list">
+            <h1 className="text-lg font-semibold">Freigaben für mich</h1>
+            <Button variant="secondary" size="icon" onClick={() => void sharedQuery.refetch()} aria-label="Freigaben aktualisieren">
               <RefreshCw size={14} />
             </Button>
           </div>
@@ -105,7 +109,7 @@ export function SharedPage() {
                 >
                   <p className="truncate text-sm font-medium">{entry.item.name}</p>
                   <p className="text-xs text-zinc-400">
-                    {entry.item.type} - {entry.share.access}
+                    {entry.item.type === 'folder' ? 'Ordner' : 'Datei'} · {accessLabel(entry.share.access)}
                   </p>
                 </button>
               );
@@ -113,7 +117,7 @@ export function SharedPage() {
 
             {!sharedQuery.isLoading && (sharedQuery.data?.length ?? 0) === 0 ? (
               <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-6 text-sm text-zinc-400">
-                No internal shares yet.
+                Aktuell liegen keine internen Freigaben vor.
               </div>
             ) : null}
           </div>
@@ -127,12 +131,12 @@ export function SharedPage() {
           <div className="min-h-0 flex-1 overflow-auto p-3">
             {!selectedShare ? (
               <div className="rounded-xl border border-white/10 bg-black/20 px-4 py-8 text-sm text-zinc-400">
-                Select a share to browse files or download content.
+                Wählen Sie eine Freigabe aus, um Inhalte zu öffnen oder herunterzuladen.
               </div>
             ) : selectedShare.item.type === 'file' ? (
               <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                 <p className="text-base font-medium">{selectedShare.item.name}</p>
-                <p className="mt-1 text-sm text-zinc-400">Direct file share</p>
+                <p className="mt-1 text-sm text-zinc-400">Direkte Dateifreigabe</p>
                 <div className="mt-4 flex items-center gap-2">
                   {isOnlyOfficeSupportedFileName(selectedShare.item.name) ? (
                     <Button
@@ -141,7 +145,7 @@ export function SharedPage() {
                         navigate(`/app/office/${selectedShare.item.id}`);
                       }}
                     >
-                      Open in Office
+                      In Office öffnen
                     </Button>
                   ) : null}
                   <Button
@@ -149,30 +153,30 @@ export function SharedPage() {
                       void api.files.download(selectedShare.item);
                     }}
                   >
-                    <Download size={14} className="mr-1" /> Download
+                    <Download size={14} className="mr-1" /> Herunterladen
                   </Button>
                   {writable ? (
                     <Button
                       variant="secondary"
                       onClick={async () => {
-                        const name = window.prompt('New name', selectedShare.item.name);
+                        const name = window.prompt('Neuer Name', selectedShare.item.name);
                         if (!name || name === selectedShare.item.name) return;
                         await updateMutation.mutateAsync({ nodeId: selectedShare.item.id, payload: { name } });
                       }}
                     >
-                      Rename
+                      Umbenennen
                     </Button>
                   ) : null}
                   {writable ? (
                     <Button
                       variant="destructive"
                       onClick={async () => {
-                        if (!window.confirm(`Delete ${selectedShare.item.name}?`)) return;
+                        if (!window.confirm(`${selectedShare.item.name} wirklich löschen?`)) return;
                         await deleteMutation.mutateAsync(selectedShare.item.id);
                         setSelectedShare(null);
                       }}
                     >
-                      Delete
+                      Löschen
                     </Button>
                   ) : null}
                 </div>
@@ -192,7 +196,7 @@ export function SharedPage() {
                       setPathIds((prev) => prev.slice(0, -1));
                     }}
                   >
-                    Back
+                    Zurück
                   </Button>
                 </div>
 
@@ -216,7 +220,7 @@ export function SharedPage() {
                   onRename={
                     writable
                       ? (node) => {
-                          const name = window.prompt('New name', node.name);
+                          const name = window.prompt('Neuer Name', node.name);
                           if (!name || name === node.name) return;
                           void updateMutation.mutateAsync({ nodeId: node.id, payload: { name } });
                         }
@@ -225,7 +229,7 @@ export function SharedPage() {
                   onDelete={
                     writable
                       ? (node) => {
-                          if (!window.confirm(`Delete ${node.name}?`)) return;
+                          if (!window.confirm(`${node.name} wirklich löschen?`)) return;
                           void deleteMutation.mutateAsync(node.id);
                         }
                       : undefined

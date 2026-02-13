@@ -37,7 +37,7 @@ export function UploadDropzone({ onFiles, disabled }: UploadDropzoneProps) {
         setIsDragActive(false);
         await handleFiles(event.dataTransfer.files);
       }}
-      aria-label="Upload dropzone"
+      aria-label="Upload-Bereich"
     >
       <input
         ref={inputRef}
@@ -54,10 +54,10 @@ export function UploadDropzone({ onFiles, disabled }: UploadDropzoneProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm text-zinc-200">
           <UploadCloud size={18} className="text-cyan-300" />
-          Drag and drop files here or use upload button.
+          Ziehen Sie Dateien hier hinein oder nutzen Sie den Upload-Button.
         </div>
         <Button type="button" size="sm" onClick={() => inputRef.current?.click()} disabled={disabled}>
-          Upload
+          Hochladen
         </Button>
       </div>
     </div>

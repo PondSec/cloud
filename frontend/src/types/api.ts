@@ -73,6 +73,25 @@ export interface AdminSettings {
   updated_at: string | null;
 }
 
+export type DockPosition = 'bottom' | 'left' | 'right';
+
+export interface UiPreferences {
+  effectsQuality: 'low' | 'medium' | 'high';
+  animationsEnabled: boolean;
+  cornerRadius: number;
+  panelOpacity: number;
+  uiScale: number;
+  accentHue: number;
+  accentSaturation: number;
+  accentLightness: number;
+  dockPosition: DockPosition;
+  dockEdgeOffset: number;
+  dockBaseItemSize: number;
+  dockMagnification: number;
+  dockPanelHeight: number;
+  dockOrder: string[];
+}
+
 export type ShareAccess = 'read' | 'write';
 
 export interface InternalShare {

@@ -17,6 +17,7 @@ import {
   Move,
   NotebookPen,
   Palette,
+  Pencil,
   Plus,
   Search,
   Settings,
@@ -40,6 +41,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { api, toApiMessage } from '@/lib/api';
+import { BRAND } from '@/lib/brand';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { formatBytes, formatDate, cn } from '@/lib/utils';
 import type { FileNode, FolderTreeNode } from '@/types/api';
@@ -198,7 +200,7 @@ const WIDGET_LIBRARY: Array<{
 }> = [
   {
     type: 'welcome',
-    label: 'Welcome',
+    label: 'Willkommen',
     description: 'Persoenliche Begruessung mit Notiz.',
     icon: <Sparkles size={14} />,
   },
@@ -216,7 +218,7 @@ const WIDGET_LIBRARY: Array<{
   },
   {
     type: 'shortcuts',
-    label: 'Shortcuts',
+    label: 'Schnellzugriffe',
     description: 'Schneller Zugriff auf Kernbereiche.',
     icon: <LayoutDashboard size={14} />,
   },
@@ -229,14 +231,14 @@ const WIDGET_LIBRARY: Array<{
   },
   {
     type: 'recents',
-    label: 'Recents',
+    label: 'Zuletzt',
     description: 'Zuletzt geaenderte Cloud-Dateien.',
     icon: <FolderClock size={14} />,
     requiresFileRead: true,
   },
   {
     type: 'storage',
-    label: 'Storage',
+    label: 'Speicher',
     description: 'Speicherverbrauch deines Kontos.',
     icon: <HardDrive size={14} />,
   },
@@ -650,7 +652,7 @@ async function fetchWeather(city: string): Promise<WeatherPayload> {
   const geocoding = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=de&format=json`,
   );
-  if (!geocoding.ok) throw new Error('Geocoding failed');
+  if (!geocoding.ok) throw new Error('Geocoding konnte nicht geladen werden');
   const geoJson = await geocoding.json();
   const first = geoJson?.results?.[0];
   if (!first?.latitude || !first?.longitude) {
@@ -660,7 +662,7 @@ async function fetchWeather(city: string): Promise<WeatherPayload> {
   const forecast = await fetch(
     `https://api.open-meteo.com/v1/forecast?latitude=${first.latitude}&longitude=${first.longitude}&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto`,
   );
-  if (!forecast.ok) throw new Error('Forecast failed');
+  if (!forecast.ok) throw new Error('Wetterprognose konnte nicht geladen werden');
   const fcJson = await forecast.json();
   const current = fcJson?.current;
 
@@ -753,7 +755,7 @@ function WelcomeWidget({ title, note, username }: { title: string; note: string;
         <h4 className="mt-1 text-xl font-semibold text-zinc-100">{title}</h4>
         <p className="mt-2 text-sm text-zinc-200">{note}</p>
       </div>
-      <p className="text-xs text-zinc-300">Aktiv als {username ?? 'Cloud User'}.</p>
+      <p className="text-xs text-zinc-300">Aktiv als {username ?? 'Nutzer'} in {BRAND.fullName}.</p>
     </div>
   );
 }
@@ -826,7 +828,7 @@ function ShortcutsWidget() {
       </Button>
 
       <Button variant="secondary" size="sm" className="justify-start" onClick={() => navigate('/app/home')}>
-        <Link2 size={13} className="mr-1" /> Home
+        <Link2 size={13} className="mr-1" /> Start
       </Button>
     </div>
   );
@@ -903,7 +905,7 @@ function WidgetShell({
     <article
       style={style}
       className={cn(
-        'absolute overflow-hidden rounded-2xl border border-white/20 bg-black/35 p-3 text-left shadow-[0_16px_50px_rgba(0,0,0,0.35)] transition-transform',
+        'group absolute overflow-hidden rounded-2xl border border-white/20 bg-black/35 p-3 text-left shadow-[0_16px_50px_rgba(0,0,0,0.35)] transition-all duration-300',
         dragging ? 'scale-[1.01] border-cyan-300/50 shadow-[0_20px_60px_rgba(34,211,238,0.2)]' : '',
       )}
     >
@@ -913,7 +915,7 @@ function WidgetShell({
           {subtitle ? <p className="truncate text-xs text-zinc-300">{subtitle}</p> : null}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 opacity-100 transition-opacity duration-200 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
           <button
             type="button"
             onPointerDown={onDragStart}
@@ -934,8 +936,9 @@ function WidgetShell({
             type="button"
             onClick={onEdit}
             className="rounded-md border border-white/10 bg-black/25 px-2 py-1 text-[11px] text-zinc-200 hover:bg-white/10"
+            aria-label="Widget bearbeiten"
           >
-            Edit
+            <Pencil size={12} />
           </button>
 
           <button
@@ -1604,7 +1607,7 @@ export function HomePage() {
 
         return (
           <div className="relative h-full overflow-hidden rounded-xl border border-white/10 bg-black/30">
-            <img src={widget.image_url} alt={widget.caption || 'Widget image'} className="h-full w-full object-cover" />
+            <img src={widget.image_url} alt={widget.caption || 'Widget-Bild'} className="h-full w-full object-cover" />
             {widget.caption ? (
               <div className="absolute inset-x-0 bottom-0 bg-black/45 px-2 py-1 text-xs text-zinc-100">{widget.caption}</div>
             ) : null}
@@ -1641,7 +1644,7 @@ export function HomePage() {
 
       return (
         <div className="relative h-full overflow-hidden rounded-xl border border-white/10 bg-black/30">
-          <img src={cloudUrl} alt={widget.caption || `Cloud image ${widget.cloud_file_id}`} className="h-full w-full object-cover" />
+          <img src={cloudUrl} alt={widget.caption || `Cloud-Bild ${widget.cloud_file_id}`} className="h-full w-full object-cover" />
           <div className="absolute left-2 top-2 rounded-full border border-black/25 bg-black/55 px-2 py-0.5 text-[10px] text-zinc-100">
             Cloud #{widget.cloud_file_id}
           </div>
@@ -1687,11 +1690,11 @@ export function HomePage() {
             <div>
               <p className={cn('inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs', activeTheme.accentClass)}>
                 <Sparkles size={12} />
-                Home
+                {BRAND.fullName}
               </p>
               <h1 className="mt-2 text-2xl font-semibold text-zinc-100 sm:text-3xl">Ein ruhiger Startpunkt</h1>
               <p className="mt-1 text-sm text-zinc-300">
-                Dein Platz zum Ankommen. Widgets bleiben frei verschiebbar, aber die Ansicht ist bewusst reduziert.
+                Ihr persönlicher Platz zum Ankommen. Klar geführt, ruhig gestaltet, vollständig anpassbar.
               </p>
             </div>
 
@@ -1711,7 +1714,7 @@ export function HomePage() {
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-zinc-300">
             <span className="rounded-full border border-white/15 bg-black/20 px-2 py-1">{widgetCount} Widgets</span>
             <span className="rounded-full border border-white/15 bg-black/20 px-2 py-1">{activeTheme.name}</span>
-            <span className="rounded-full border border-white/15 bg-black/20 px-2 py-1">Snap {prefs.snapToGrid ? 'Ein' : 'Aus'}</span>
+            <span className="rounded-full border border-white/15 bg-black/20 px-2 py-1">Raster {prefs.snapToGrid ? 'Ein' : 'Aus'}</span>
           </div>
         </header>
 
@@ -1813,7 +1816,7 @@ export function HomePage() {
                         : 'border-white/10 bg-black/20 text-zinc-200',
                     )}
                   >
-                    Grid {prefs.showGrid ? 'Ein' : 'Aus'}
+                    Rasterlinien {prefs.showGrid ? 'Ein' : 'Aus'}
                   </button>
                   <button
                     type="button"
@@ -1825,13 +1828,13 @@ export function HomePage() {
                         : 'border-white/10 bg-black/20 text-zinc-200',
                     )}
                   >
-                    Snap {prefs.snapToGrid ? 'Ein' : 'Aus'}
+                    Am Raster ausrichten {prefs.snapToGrid ? 'Ein' : 'Aus'}
                   </button>
                   <Button variant="secondary" size="sm" onClick={autoArrange}>
-                    Auto-Arrange
+                    Automatisch anordnen
                   </Button>
                   <Button variant="secondary" size="sm" onClick={resetHome}>
-                    Reset
+                    Zurücksetzen
                   </Button>
                 </div>
               </div>

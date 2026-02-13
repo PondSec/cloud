@@ -42,25 +42,67 @@ def _load_average() -> tuple[float | None, float | None, float | None]:
     return None, None, None
 
 
+def _fallback_memory_stats() -> tuple[int | None, int | None, float | None]:
+    page_size_key = "SC_PAGE_SIZE" if "SC_PAGE_SIZE" in os.sysconf_names else "SC_PAGESIZE"
+    try:
+        total_pages = int(os.sysconf("SC_PHYS_PAGES"))
+        available_pages = int(os.sysconf("SC_AVPHYS_PAGES"))
+        page_size = int(os.sysconf(page_size_key))
+        if total_pages <= 0 or page_size <= 0:
+            return None, None, None
+        total = total_pages * page_size
+        available = max(0, available_pages) * page_size
+        used = max(0, total - available)
+        percent = (used / total * 100.0) if total > 0 else None
+        return used, total, percent
+    except Exception:
+        return None, None, None
+
+
+def _fallback_network_totals() -> tuple[int | None, int | None]:
+    proc_net = Path("/proc/net/dev")
+    if not proc_net.exists():
+        return None, None
+    sent_total = 0
+    recv_total = 0
+    try:
+        for line in proc_net.read_text(encoding="utf-8").splitlines()[2:]:
+            if ":" not in line:
+                continue
+            _, values = line.split(":", 1)
+            columns = values.split()
+            if len(columns) < 10:
+                continue
+            recv_total += int(columns[0] or 0)
+            sent_total += int(columns[8] or 0)
+        return sent_total, recv_total
+    except Exception:
+        return None, None
+
+
 def collect_host_metrics(storage_root: Path) -> dict[str, Any]:
     if psutil is None:
         total, used, free = shutil.disk_usage(storage_root)
         load_1, load_5, load_15 = _load_average()
+        memory_used, memory_total, memory_percent = _fallback_memory_stats()
+        net_sent, net_recv = _fallback_network_totals()
+        cpu_count = max(1, int(os.cpu_count() or 1))
+        cpu_percent = (min(100.0, max(0.0, (load_1 / cpu_count) * 100.0)) if load_1 is not None else None)
         return {
             "available": False,
             "reason": "psutil is not installed",
-            "cpu_percent": None,
-            "memory_percent": None,
-            "memory_used_bytes": None,
-            "memory_total_bytes": None,
+            "cpu_percent": cpu_percent,
+            "memory_percent": memory_percent,
+            "memory_used_bytes": memory_used,
+            "memory_total_bytes": memory_total,
             "disk_percent": (used / total * 100.0) if total > 0 else 0.0,
             "disk_used_bytes": used,
             "disk_free_bytes": free,
             "disk_total_bytes": total,
             "disk_read_bytes": None,
             "disk_write_bytes": None,
-            "net_bytes_sent": None,
-            "net_bytes_recv": None,
+            "net_bytes_sent": net_sent,
+            "net_bytes_recv": net_recv,
             "load_average": {
                 "one": load_1,
                 "five": load_5,

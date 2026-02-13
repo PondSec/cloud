@@ -193,17 +193,28 @@ async function handleLsp(ws: WebSocket, workspaceId: string | null, language: st
 }
 
 function lspCommand(language: string): string | null {
-  switch (language) {
-    case 'typescript':
-    case 'javascript':
-      return 'typescript-language-server --stdio';
-    case 'python':
-      return 'pyright-langserver --stdio';
-    case 'c':
-      return 'clangd --background-index';
-    default:
-      return null;
-  }
+  const map: Record<string, string> = {
+    typescript: 'typescript-language-server --stdio',
+    javascript: 'typescript-language-server --stdio',
+    python: 'pyright-langserver --stdio',
+    c: 'clangd --background-index',
+    cpp: 'clangd --background-index',
+    html: 'vscode-html-language-server --stdio',
+    css: 'vscode-css-language-server --stdio',
+    json: 'vscode-json-language-server --stdio',
+    yaml: 'yaml-language-server --stdio',
+    bash: 'bash-language-server start',
+    shellscript: 'bash-language-server start',
+    sh: 'bash-language-server start',
+    dockerfile: 'docker-langserver --stdio',
+    php: 'intelephense --stdio',
+    sql: 'sql-language-server up --method stdio',
+    go: 'gopls',
+    rust: 'rust-analyzer',
+    lua: 'lua-language-server',
+    java: 'jdtls',
+  };
+  return map[language] ?? null;
 }
 
 function encodeLspMessage(json: string): string {

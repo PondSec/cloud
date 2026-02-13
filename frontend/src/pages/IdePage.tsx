@@ -56,11 +56,13 @@ export function IdePage() {
 
   const token = getIdeToken();
   const [activeView, setActiveView] = useState<ActivityView>('explorer');
-  const [runtimeStatus, setRuntimeStatus] = useState('runner: unknown');
+  const [runtimeStatus, setRuntimeStatus] = useState('Runner: unbekannt');
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [gitDiffRaw, setGitDiffRaw] = useState('');
   const [searchText, setSearchText] = useState('');
+  const [debugCommand, setDebugCommand] = useState('');
+  const [extensionCommand, setExtensionCommand] = useState('');
   const [previewRefreshToken, setPreviewRefreshToken] = useState(0);
   const previewReloadTimerRef = useRef<number | null>(null);
   const previewAutosaveTimerRef = useRef<number | null>(null);
@@ -69,16 +71,23 @@ export function IdePage() {
     () => openFiles.find((item) => item.path === activeFilePath) ?? null,
     [openFiles, activeFilePath],
   );
+  const activeFileExt = useMemo(() => activeFile?.path.split('.').at(-1)?.toLowerCase() ?? '', [activeFile?.path]);
+  const previewMode = useMemo<'app' | 'markdown'>(() => {
+    if (['md', 'markdown', 'mdown'].includes(activeFileExt)) {
+      return 'markdown';
+    }
+    return 'app';
+  }, [activeFileExt]);
 
   const activeLanguage = useMemo(() => {
     if (!activeFile) return 'plaintext';
-    const ext = activeFile.path.split('.').at(-1)?.toLowerCase() || '';
+    const ext = activeFileExt;
     if (['ts', 'tsx'].includes(ext)) return 'typescript';
     if (['js', 'jsx'].includes(ext)) return 'javascript';
     if (ext === 'py') return 'python';
     if (['c', 'h'].includes(ext)) return 'c';
     return ext || 'plaintext';
-  }, [activeFile]);
+  }, [activeFileExt, activeFile]);
 
   async function loadWorkspace(): Promise<void> {
     if (!token) {
@@ -89,7 +98,7 @@ export function IdePage() {
     try {
       const details = await ideApi.workspace.details(workspaceId);
       setWorkspace(details.workspace, details.settings);
-      setRuntimeStatus(details.runtime.running ? 'runner: active' : 'runner: stopped');
+      setRuntimeStatus(details.runtime.running ? 'Runner: aktiv' : 'Runner: gestoppt');
       const configuredPreviewCommand = details.settings.commands.preview?.trim() ?? '';
       const resolvedPreviewPort =
         details.settings.previewPort ??
@@ -97,7 +106,7 @@ export function IdePage() {
       setPreviewPort(resolvedPreviewPort);
 
       await ideApi.workspace.start(workspaceId);
-      setRuntimeStatus('runner: active');
+      setRuntimeStatus('Runner: aktiv');
 
       await loadDir('');
       await refreshGit();
@@ -184,7 +193,7 @@ export function IdePage() {
     const raw = configured || fallbackPreviewCommand;
     if (!raw) {
       setBottomPanel('output');
-      appendOutput(`\n[error] No command configured for '${task}'. Configure it in .cloudide.json or use custom command.`);
+      appendOutput(`\n[error] Für '${task}' ist kein Befehl konfiguriert. Hinterlegen Sie ihn in .cloudide.json oder verwenden Sie einen eigenen Befehl.`);
       return;
     }
 
@@ -216,7 +225,7 @@ export function IdePage() {
 
   async function renamePath(path: string): Promise<void> {
     const baseName = path.split('/').pop() || path;
-    const nextName = window.prompt('New name', baseName);
+    const nextName = window.prompt('Neuer Name', baseName);
     if (!nextName || nextName === baseName) return;
 
     const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
@@ -238,7 +247,7 @@ export function IdePage() {
   }
 
   async function movePath(path: string): Promise<void> {
-    const target = window.prompt('Move to path (include file/folder name)', path);
+    const target = window.prompt('Neuer Zielpfad (inkl. Datei-/Ordnername)', path);
     if (!target || target === path) return;
     const node = files.find((item) => item.path === path);
 
@@ -257,7 +266,7 @@ export function IdePage() {
   }
 
   async function deletePath(path: string): Promise<void> {
-    if (!window.confirm(`Delete '${path}'?`)) return;
+    if (!window.confirm(`'${path}' wirklich löschen?`)) return;
     try {
       await ideApi.files.remove(workspaceId, path);
       removeOpenFilesByPrefix(path);
@@ -274,7 +283,7 @@ export function IdePage() {
 
   async function runActiveFile(): Promise<void> {
     if (!activeFile) {
-      appendOutput('[error] No active file selected.\n');
+      appendOutput('[error] Keine aktive Datei ausgewählt.\n');
       return;
     }
     const ext = activeFile.path.split('.').pop()?.toLowerCase() || '';
@@ -303,7 +312,7 @@ export function IdePage() {
 
     ws.onmessage = (event) => {
       void loadDir(explorerPath);
-      if (!previewVisible) return;
+      if (!previewVisible || previewMode !== 'app') return;
       try {
         const payload = JSON.parse(String(event.data)) as { event?: string };
         if (!payload.event) return;
@@ -314,10 +323,10 @@ export function IdePage() {
     };
 
     return () => ws.close();
-  }, [workspaceId, explorerPath, token, previewVisible]);
+  }, [workspaceId, explorerPath, token, previewVisible, previewMode]);
 
   useEffect(() => {
-    if (!previewVisible || !token || !activeFile || !activeFile.dirty) {
+    if (!previewVisible || previewMode !== 'app' || !token || !activeFile || !activeFile.dirty) {
       if (previewAutosaveTimerRef.current !== null) {
         window.clearTimeout(previewAutosaveTimerRef.current);
         previewAutosaveTimerRef.current = null;
@@ -352,7 +361,7 @@ export function IdePage() {
         previewAutosaveTimerRef.current = null;
       }
     };
-  }, [previewVisible, token, workspaceId, activeFile, markClean]);
+  }, [previewVisible, previewMode, token, workspaceId, activeFile, markClean]);
 
   useEffect(
     () => () => {
@@ -389,17 +398,138 @@ export function IdePage() {
 
   const commandPaletteItems = useMemo(
     () => [
-      { id: 'files.refresh', title: 'Explorer: Refresh', run: () => void loadDir(explorerPath) },
-      { id: 'file.save', title: 'File: Save Active File', run: () => void saveActive() },
-      { id: 'git.refresh', title: 'Git: Refresh Status', run: () => void refreshGit() },
-      { id: 'task.run', title: 'Tasks: Run', run: () => void runTask('run') },
+      { id: 'files.refresh', title: 'Dateien: Aktualisieren', run: () => void loadDir(explorerPath) },
+      { id: 'file.save', title: 'Datei: Aktive Datei speichern', run: () => void saveActive() },
+      { id: 'git.refresh', title: 'Git: Status aktualisieren', run: () => void refreshGit() },
+      { id: 'task.run', title: 'Tasks: Starten', run: () => void runTask('run') },
       { id: 'task.build', title: 'Tasks: Build', run: () => void runTask('build') },
-      { id: 'preview.toggle', title: 'View: Toggle Preview', run: () => setPreviewVisible(!previewVisible) },
+      { id: 'preview.toggle', title: 'Ansicht: Vorschau umschalten', run: () => setPreviewVisible(!previewVisible) },
     ],
     [explorerPath, previewVisible, workspaceSettings, activeFile],
   );
 
   const branch = gitStatusRaw.split('\n')[0]?.trim() || 'git';
+  const escapedActivePath = activeFile ? shellEscape(activeFile.path) : '';
+  const debugPresets = [
+    {
+      id: 'node-inspect',
+      label: 'Node Debug (Inspector)',
+      command: activeFile ? `node --inspect-brk ${escapedActivePath}` : '',
+      enabled: ['js', 'mjs', 'cjs', 'ts', 'tsx'].includes(activeFileExt),
+      note: 'Startet die aktive Datei mit Inspector auf Port 9229.',
+    },
+    {
+      id: 'python-debugpy',
+      label: 'Python Debug (debugpy)',
+      command: activeFile ? `python3 -m debugpy --listen 0.0.0.0:5678 --wait-for-client ${escapedActivePath}` : '',
+      enabled: activeFileExt === 'py',
+      note: 'Startet die aktive Datei und wartet auf einen Debug-Client.',
+    },
+    {
+      id: 'c-gdb',
+      label: 'C Debug (gdb)',
+      command: activeFile
+        ? `gcc -g -O0 ${escapedActivePath} -o /tmp/cloudide-debug && gdb -q /tmp/cloudide-debug`
+        : '',
+      enabled: activeFileExt === 'c',
+      note: 'Kompiliert mit Debug-Symbolen und öffnet gdb.',
+    },
+  ];
+
+  const aptInstallCommand = (packages: string): string =>
+    `if command -v apt-get >/dev/null 2>&1; then if [ "$(id -u)" -eq 0 ]; then apt-get update && apt-get install -y ${packages}; elif command -v sudo >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y ${packages}; else echo "[hinweis] apt-get gefunden, aber kein sudo/root. Bitte Workspace-Image erweitern: ${packages}"; exit 126; fi; else echo "[hinweis] apt-get ist in diesem Workspace nicht verfuegbar. Bitte Paketmanager manuell nutzen."; exit 127; fi`;
+
+  const goToolingCommand = `if command -v gopls >/dev/null 2>&1; then echo "[ok] gopls bereits installiert."; else ${aptInstallCommand(
+    'golang-go gopls',
+  )}; fi`;
+
+  const phpToolingCommand = `if command -v php >/dev/null 2>&1; then npm install -g intelephense; else ${aptInstallCommand(
+    'php-cli composer',
+  )} && npm install -g intelephense; fi`;
+
+  const dockerToolingCommand = `npm install -g dockerfile-language-server-nodejs && if command -v hadolint >/dev/null 2>&1; then echo "[ok] hadolint bereits installiert."; else ${aptInstallCommand(
+    'hadolint',
+  )}; fi`;
+
+  const cppToolingCommand = `if command -v gcc >/dev/null 2>&1 && command -v clang >/dev/null 2>&1 && command -v clangd >/dev/null 2>&1 && command -v gdb >/dev/null 2>&1; then echo "[ok] C/C++ Toolchain bereits installiert."; else ${aptInstallCommand(
+    'build-essential gdb cmake clang clangd',
+  )}; fi`;
+
+  const extensionPresets = [
+    {
+      id: 'lsp-core-pack',
+      label: 'LSP Core Pack',
+      command:
+        'npm install -g vscode-langservers-extracted yaml-language-server bash-language-server dockerfile-language-server-nodejs sql-language-server intelephense @tailwindcss/language-server',
+      note: 'Installiert HTML/CSS/JSON/YAML/Bash/Dockerfile/SQL/PHP/Tailwind-Sprachserver.',
+    },
+    {
+      id: 'cpp-toolchain',
+      label: 'C/C++ Toolchain',
+      command: cppToolingCommand,
+      note: 'Compiler, Debugger und Build-Tools fuer C/C++ (ohne harte sudo-Pflicht).',
+    },
+    {
+      id: 'python-dev',
+      label: 'Python Dev Stack',
+      command: 'python3 -m pip install --user debugpy ipython pytest black mypy ruff',
+      note: 'Debugging, Testing und Formatierung für Python.',
+    },
+    {
+      id: 'node-dev',
+      label: 'Node/TS Tooling',
+      command: 'npm install --save-dev typescript ts-node eslint prettier @types/node',
+      note: 'TypeScript, Linting und Formatierung für JS/TS.',
+    },
+    {
+      id: 'web-lint',
+      label: 'Web Lint/Format',
+      command: 'npm install --save-dev stylelint stylelint-config-standard htmlhint prettier',
+      note: 'Linting für HTML/CSS und einheitliche Formatierung.',
+    },
+    {
+      id: 'go-dev',
+      label: 'Go Tooling',
+      command: goToolingCommand,
+      note: 'Installiert Go + gopls Language Server (oder erkennt vorhandene Installation).',
+    },
+    {
+      id: 'rust-dev',
+      label: 'Rust Tooling',
+      command: 'curl https://sh.rustup.rs -sSf | sh -s -- -y && ~/.cargo/bin/rustup component add rust-analyzer',
+      note: 'Installiert Rust Toolchain inklusive rust-analyzer.',
+    },
+    {
+      id: 'lua-dev',
+      label: 'Lua Tooling',
+      command: aptInstallCommand('lua5.4 luarocks lua-language-server'),
+      note: 'Installiert Lua Runtime und Language Server (falls apt verfuegbar).',
+    },
+    {
+      id: 'java-dev',
+      label: 'Java Tooling',
+      command: aptInstallCommand('openjdk-17-jdk-headless maven gradle'),
+      note: 'Installiert Java Build-Stack. Fuer LSP kann anschliessend jdtls installiert werden.',
+    },
+    {
+      id: 'dotnet-dev',
+      label: '.NET Tooling',
+      command: 'curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 8.0',
+      note: 'Installiert das aktuelle .NET SDK im Workspace.',
+    },
+    {
+      id: 'php-dev',
+      label: 'PHP Tooling',
+      command: phpToolingCommand,
+      note: 'Installiert PHP CLI, Composer und Intelephense ohne harte sudo-Annahme.',
+    },
+    {
+      id: 'docker-tools',
+      label: 'Container Tools',
+      command: dockerToolingCommand,
+      note: 'Dockerfile-Intelligence und Dockerfile-Linting mit apt-Check fuer hadolint.',
+    },
+  ];
 
   let sidebarBody: React.ReactNode = null;
   if (activeView === 'explorer') {
@@ -434,7 +564,7 @@ export function IdePage() {
       <div className="panel-content">
         <input
           className="input"
-          placeholder="search in open files"
+          placeholder="In geöffneten Dateien suchen"
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
           style={{ width: '100%', marginBottom: 8 }}
@@ -479,11 +609,110 @@ export function IdePage() {
     );
   }
 
+  if (activeView === 'debug') {
+    sidebarBody = (
+      <div className="panel-content">
+        <div style={{ marginBottom: 10, color: '#b5b5b5', fontSize: 12 }}>
+          Aktive Datei: <strong style={{ color: '#e5e5e5' }}>{activeFile?.path || 'keine Datei ausgewählt'}</strong>
+        </div>
+
+        <div style={{ display: 'grid', gap: 8, marginBottom: 12 }}>
+          {debugPresets.map((preset) => (
+            <div key={preset.id} style={{ border: '1px solid var(--border)', borderRadius: 6, padding: 8, background: '#1f1f1f' }}>
+              <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
+                <strong style={{ fontSize: 12 }}>{preset.label}</strong>
+                <button
+                  className="btn"
+                  disabled={!preset.enabled || !preset.command}
+                  onClick={() => {
+                    if (!preset.enabled || !preset.command) return;
+                    void runTask('custom', preset.command);
+                  }}
+                >
+                  Starten
+                </button>
+              </div>
+              <div style={{ color: '#9f9f9f', fontSize: 12, marginBottom: 6 }}>{preset.note}</div>
+              <code style={{ display: 'block', whiteSpace: 'pre-wrap', color: '#9fd8ff', fontSize: 11 }}>{preset.command || '-'}</code>
+            </div>
+          ))}
+        </div>
+
+        <div className="row" style={{ marginBottom: 8 }}>
+          <input
+            className="input"
+            value={debugCommand}
+            onChange={(event) => setDebugCommand(event.target.value)}
+            placeholder="Eigener Debug-Befehl (z. B. node --inspect-brk app.js)"
+            style={{ flex: 1 }}
+          />
+          <button
+            className="btn"
+            onClick={() => {
+              if (!debugCommand.trim()) return;
+              void runTask('custom', debugCommand.trim());
+            }}
+          >
+            Ausführen
+          </button>
+        </div>
+
+        <div className="row">
+          <button className="btn" onClick={() => setBottomPanel('terminal')}>
+            Terminal öffnen
+          </button>
+          <button className="btn" onClick={() => setBottomPanel('output')}>
+            Ausgabe öffnen
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (activeView === 'extensions') {
     sidebarBody = (
       <div className="panel-content">
-        <p style={{ color: '#9f9f9f' }}>
-          Extension marketplace is a stub in MVP. Use backend LSP adapters to add additional language servers.
+        <p className="ide-extensions-hint">
+          Diese IDE nutzt Monaco + LSP. VS-Code-Marketplace-Extensions (UI/Extension-Host) laufen hier nicht 1:1. Sie koennen aber praktisch alle
+          Compiler, Debugger, Linter und Language-Server direkt im Workspace installieren.
+        </p>
+
+        <div className="ide-preset-grid">
+          {extensionPresets.map((preset) => (
+            <div key={preset.id} className="ide-preset-card">
+              <div className="ide-preset-card-head">
+                <strong className="ide-preset-card-title">{preset.label}</strong>
+                <button className="btn" onClick={() => void runTask('custom', preset.command)}>
+                  Installieren
+                </button>
+              </div>
+              <div className="ide-preset-card-note">{preset.note}</div>
+              <code className="ide-preset-card-command">{preset.command}</code>
+            </div>
+          ))}
+        </div>
+
+        <div className="row" style={{ marginBottom: 8 }}>
+          <input
+            className="input"
+            value={extensionCommand}
+            onChange={(event) => setExtensionCommand(event.target.value)}
+            placeholder="Eigener Install-/Setup-Befehl"
+            style={{ flex: 1 }}
+          />
+          <button
+            className="btn"
+            onClick={() => {
+              if (!extensionCommand.trim()) return;
+              void runTask('custom', extensionCommand.trim());
+            }}
+          >
+            Ausführen
+          </button>
+        </div>
+
+        <p style={{ color: '#8a8a8a', fontSize: 12, marginBottom: 0 }}>
+          Hinweis: Manche Installationen benötigen Netzwerkzugriff oder Root-Rechte im Runner-Container.
         </p>
       </div>
     );
@@ -491,13 +720,22 @@ export function IdePage() {
 
   if (!token) return null;
 
+  const viewLabel: Record<ActivityView, string> = {
+    explorer: 'Dateien',
+    search: 'Suche',
+    'source-control': 'Quellkontrolle',
+    run: 'Ausführen',
+    debug: 'Debug',
+    extensions: 'Erweiterungen',
+  };
+
   return (
     <div className="ide-root">
       <div className="app-shell">
         <ActivityBar active={activeView} onChange={setActiveView} />
 
         <section className="sidebar">
-          <header className="sidebar-header">{activeView.replace('-', ' ')}</header>
+          <header className="sidebar-header">{viewLabel[activeView]}</header>
           {sidebarBody}
         </section>
 
@@ -510,19 +748,22 @@ export function IdePage() {
               onClose={(path) => closeFile(path)}
             />
             <div className="editor-toolbar">
-              <div className="row">{activeFile?.path || '(no file opened)'}</div>
+              <div className="row">{activeFile?.path || '(keine Datei geöffnet)'}</div>
               <div className="row">
-                <Link className="btn" to="/app/files" title="Back to Cloud">
+                <Link className="btn" to="/app/files" title="Zurück zur Cloud">
                   <House size={14} />
                 </Link>
                 <button className="btn" onClick={() => navigate('/dev/workspaces')}>
-                  Workspaces
+                  Arbeitsbereiche
                 </button>
-                <button className="btn primary" onClick={() => void runActiveFile()} title="Run active file">
+                <button className="btn primary" onClick={() => void runActiveFile()} title="Aktive Datei ausführen">
                   <Play size={14} />
                 </button>
                 <button className="btn" onClick={() => void saveActive()}>
-                  Save
+                  Speichern
+                </button>
+                <button className="btn" onClick={() => setPreviewVisible(!previewVisible)}>
+                  {previewVisible ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
                 </button>
                 <button className="btn" onClick={() => setPaletteOpen(true)}>
                   Cmd/Ctrl+P
@@ -547,6 +788,9 @@ export function IdePage() {
               workspaceId={workspaceId}
               token={token}
               port={previewPort}
+              mode={previewMode}
+              activeFilePath={activeFile?.path ?? null}
+              markdownSource={previewMode === 'markdown' ? activeFile?.content ?? '' : ''}
               onStartPreview={() => runTask('preview')}
               onToggleVisible={() => setPreviewVisible(false)}
               refreshToken={previewRefreshToken}
@@ -566,20 +810,20 @@ export function IdePage() {
               className={`bottom-tab ${bottomPanel === 'problems' ? 'active' : ''}`}
               onClick={() => setBottomPanel('problems')}
             >
-              Problems
+              Probleme
             </button>
             <button
               className={`bottom-tab ${bottomPanel === 'output' ? 'active' : ''}`}
               onClick={() => setBottomPanel('output')}
             >
-              Output
+              Ausgabe
             </button>
           </div>
 
           <div className="bottom-content">
             {bottomPanel === 'terminal' && <TerminalPanel workspaceId={workspaceId} token={token} />}
-            {bottomPanel === 'problems' && (problems.length ? problems.join('\n') : 'No diagnostics')}
-            {bottomPanel === 'output' && (outputLines.length ? outputLines.join('') : 'No task output')}
+            {bottomPanel === 'problems' && (problems.length ? problems.join('\n') : 'Keine Diagnosen')}
+            {bottomPanel === 'output' && (outputLines.length ? outputLines.join('') : 'Keine Task-Ausgabe')}
           </div>
         </section>
 
@@ -587,7 +831,7 @@ export function IdePage() {
           branch={branch}
           language={activeLanguage}
           cursor={cursor}
-          workspaceName={currentWorkspace?.name || 'workspace'}
+          workspaceName={currentWorkspace?.name || 'Workspace'}
           runtimeStatus={runtimeStatus}
         />
       </div>

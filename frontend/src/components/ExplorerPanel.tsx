@@ -44,10 +44,10 @@ export function ExplorerPanel({
   return (
     <div className="panel-content">
       <div className="row" style={{ marginBottom: 8 }}>
-        <button className="btn" type="button" onClick={onRefresh} title="Refresh explorer">
+        <button className="btn" type="button" onClick={onRefresh} title="Explorer aktualisieren">
           <RefreshCw size={14} />
         </button>
-        <button className="btn" type="button" onClick={onSaveActive} title="Save active file">
+        <button className="btn" type="button" onClick={onSaveActive} title="Aktive Datei speichern">
           <Save size={14} />
         </button>
       </div>
@@ -57,7 +57,7 @@ export function ExplorerPanel({
           className="input"
           value={newName}
           onChange={(event) => setNewName(event.target.value)}
-          placeholder="new file/folder"
+          placeholder="Neuer Datei-/Ordnername"
           style={{ flex: 1 }}
         />
         <button
@@ -68,7 +68,7 @@ export function ExplorerPanel({
             onCreateFile(`${base}${newName.trim()}`);
             setNewName('');
           }}
-          title="Create file"
+          title="Datei erstellen"
         >
           <FilePlus size={14} />
         </button>
@@ -80,7 +80,7 @@ export function ExplorerPanel({
             onCreateFolder(`${base}${newName.trim()}`);
             setNewName('');
           }}
-          title="Create folder"
+          title="Ordner erstellen"
         >
           <FolderPlus size={14} />
         </button>
@@ -110,8 +110,8 @@ export function ExplorerPanel({
             <button
               type="button"
               className="btn"
-              aria-label={`Rename ${node.name}`}
-              title={`Rename ${node.name}`}
+              aria-label={`${node.name} umbenennen`}
+              title={`${node.name} umbenennen`}
               onClick={() => onRenamePath(node.path)}
             >
               <Pencil size={12} />
@@ -119,8 +119,8 @@ export function ExplorerPanel({
             <button
               type="button"
               className="btn"
-              aria-label={`Move ${node.name}`}
-              title={`Move ${node.name}`}
+              aria-label={`${node.name} verschieben`}
+              title={`${node.name} verschieben`}
               onClick={() => onMovePath(node.path)}
             >
               <ArrowRightLeft size={12} />
@@ -128,8 +128,8 @@ export function ExplorerPanel({
             <button
               type="button"
               className="btn"
-              aria-label={`Delete ${node.name}`}
-              title={`Delete ${node.name}`}
+              aria-label={`${node.name} löschen`}
+              title={`${node.name} löschen`}
               onClick={() => onDeletePath(node.path)}
             >
               <Trash2 size={12} />

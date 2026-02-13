@@ -9,12 +9,12 @@ const DEFAULT_GLOW_COLOR = '132, 0, 255';
 const MOBILE_BREAKPOINT = 768;
 
 const cardData = [
-  { color: '#060010', title: 'Fast Access', description: 'Open and manage cloud files instantly.', label: 'Files' },
-  { color: '#060010', title: 'Recents', description: 'Continue from your latest activity.', label: 'Recent' },
-  { color: '#060010', title: 'Shared', description: 'Shared hooks are ready for extension.', label: 'Shared' },
-  { color: '#060010', title: 'Search', description: 'Find any node with indexed lookup.', label: 'Search' },
-  { color: '#060010', title: 'Settings', description: 'Tune visuals and preferences.', label: 'Settings' },
-  { color: '#060010', title: 'Security', description: 'JWT + RBAC + audit logs by default.', label: 'Secure' },
+  { color: '#060010', title: 'Direktzugriff', description: 'Dateien sofort öffnen und verwalten.', label: 'Dateien' },
+  { color: '#060010', title: 'Zuletzt', description: 'Nahtlos an Ihrer letzten Aktivität anknüpfen.', label: 'Zuletzt' },
+  { color: '#060010', title: 'Freigaben', description: 'Geteilte Inhalte strukturiert weiterführen.', label: 'Freigaben' },
+  { color: '#060010', title: 'Suche', description: 'Jeden Knoten schnell über Indexsuche finden.', label: 'Suche' },
+  { color: '#060010', title: 'Einstellungen', description: 'Ansicht und Verhalten präzise abstimmen.', label: 'Einstellungen' },
+  { color: '#060010', title: 'Sicherheit', description: 'JWT, RBAC und Audit-Logs standardmäßig aktiv.', label: 'Sicher' },
 ];
 
 const createParticleElement = (x, y, color = DEFAULT_GLOW_COLOR) => {
@@ -280,6 +280,10 @@ const GlobalSpotlight = ({
 }) => {
   const spotlightRef = useRef(null);
   const isInsideSection = useRef(false);
+  const rafRef = useRef(null);
+  const framePendingRef = useRef(false);
+  const latestPointerRef = useRef({ x: 0, y: 0 });
+  const lastFrameTimeRef = useRef(0);
 
   useEffect(() => {
     if (disableAnimations || !gridRef?.current || !enabled) return;
@@ -302,30 +306,51 @@ transparent 70%
 );
 z-index: 200;
 opacity: 0;
-transform: translate(-50%, -50%);
+transform: translate3d(-50%, -50%, 0);
 mix-blend-mode: screen;
+transition: opacity 160ms ease-out;
 `;
     document.body.appendChild(spotlight);
     spotlightRef.current = spotlight;
 
-    const handleMouseMove = (e) => {
+    const resetCardGlow = () => {
+      gridRef.current?.querySelectorAll('.magic-bento-card').forEach((card) => {
+        card.style.setProperty('--glow-intensity', '0');
+      });
+    };
+
+    const renderFrame = (timestamp) => {
+      framePendingRef.current = false;
       if (!spotlightRef.current || !gridRef.current) return;
 
+      const targetFrameTime = 1000 / 30;
+      if (timestamp - lastFrameTimeRef.current < targetFrameTime) {
+        framePendingRef.current = true;
+        rafRef.current = requestAnimationFrame(renderFrame);
+        return;
+      }
+      lastFrameTimeRef.current = timestamp;
+
+      const pointer = latestPointerRef.current;
       const section = gridRef.current.closest('.bento-section');
       const rect = section?.getBoundingClientRect();
       const mouseInside =
-        rect && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
-
-      isInsideSection.current = mouseInside || false;
+        rect &&
+        pointer.x >= rect.left &&
+        pointer.x <= rect.right &&
+        pointer.y >= rect.top &&
+        pointer.y <= rect.bottom;
       const cards = gridRef.current.querySelectorAll('.magic-bento-card');
 
       if (!mouseInside) {
-        gsap.to(spotlightRef.current, { opacity: 0, duration: 0.3, ease: 'power2.out' });
-        cards.forEach((card) => {
-          card.style.setProperty('--glow-intensity', '0');
-        });
+        if (isInsideSection.current) {
+          spotlightRef.current.style.opacity = '0';
+          resetCardGlow();
+        }
+        isInsideSection.current = false;
         return;
       }
+      isInsideSection.current = true;
 
       const { proximity, fadeDistance } = calculateSpotlightValues(spotlightRadius);
       let minDistance = Infinity;
@@ -335,7 +360,7 @@ mix-blend-mode: screen;
         const cardRect = cardElement.getBoundingClientRect();
         const centerX = cardRect.left + cardRect.width / 2;
         const centerY = cardRect.top + cardRect.height / 2;
-        const distance = Math.hypot(e.clientX - centerX, e.clientY - centerY) - Math.max(cardRect.width, cardRect.height) / 2;
+        const distance = Math.hypot(pointer.x - centerX, pointer.y - centerY) - Math.max(cardRect.width, cardRect.height) / 2;
         const effectiveDistance = Math.max(0, distance);
 
         minDistance = Math.min(minDistance, effectiveDistance);
@@ -347,10 +372,10 @@ mix-blend-mode: screen;
           glowIntensity = (fadeDistance - effectiveDistance) / (fadeDistance - proximity);
         }
 
-        updateCardGlowProperties(cardElement, e.clientX, e.clientY, glowIntensity, spotlightRadius);
+        updateCardGlowProperties(cardElement, pointer.x, pointer.y, glowIntensity, spotlightRadius);
       });
 
-      gsap.to(spotlightRef.current, { left: e.clientX, top: e.clientY, duration: 0.1, ease: 'power2.out' });
+      spotlightRef.current.style.transform = `translate3d(${pointer.x}px, ${pointer.y}px, 0) translate3d(-50%, -50%, 0)`;
 
       const targetOpacity =
         minDistance <= proximity
@@ -359,29 +384,41 @@ mix-blend-mode: screen;
             ? ((fadeDistance - minDistance) / (fadeDistance - proximity)) * 0.8
             : 0;
 
-      gsap.to(spotlightRef.current, {
-        opacity: targetOpacity,
-        duration: targetOpacity > 0 ? 0.2 : 0.5,
-        ease: 'power2.out',
-      });
+      spotlightRef.current.style.opacity = String(targetOpacity);
+    };
+
+    const scheduleFrame = () => {
+      if (framePendingRef.current) return;
+      framePendingRef.current = true;
+      rafRef.current = requestAnimationFrame(renderFrame);
+    };
+
+    const handleMouseMove = (e) => {
+      latestPointerRef.current = { x: e.clientX, y: e.clientY };
+      scheduleFrame();
     };
 
     const handleMouseLeave = () => {
       isInsideSection.current = false;
-      gridRef.current?.querySelectorAll('.magic-bento-card').forEach((card) => {
-        card.style.setProperty('--glow-intensity', '0');
-      });
+      resetCardGlow();
       if (spotlightRef.current) {
-        gsap.to(spotlightRef.current, { opacity: 0, duration: 0.3, ease: 'power2.out' });
+        spotlightRef.current.style.opacity = '0';
       }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mousemove', handleMouseMove, { passive: true });
     document.addEventListener('mouseleave', handleMouseLeave);
+    window.addEventListener('scroll', scheduleFrame, { passive: true });
+    window.addEventListener('resize', scheduleFrame, { passive: true });
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('scroll', scheduleFrame);
+      window.removeEventListener('resize', scheduleFrame);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
       spotlightRef.current?.parentNode?.removeChild(spotlightRef.current);
     };
   }, [gridRef, disableAnimations, enabled, spotlightRadius, glowColor]);

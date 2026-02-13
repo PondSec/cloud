@@ -12,7 +12,24 @@ type Pending = {
 
 export class LspClient {
   private readonly workspaceId: string;
-  private readonly language: 'typescript' | 'javascript' | 'python' | 'c';
+  private readonly language:
+    | 'typescript'
+    | 'javascript'
+    | 'python'
+    | 'c'
+    | 'cpp'
+    | 'html'
+    | 'css'
+    | 'json'
+    | 'yaml'
+    | 'bash'
+    | 'dockerfile'
+    | 'php'
+    | 'sql'
+    | 'go'
+    | 'rust'
+    | 'lua'
+    | 'java';
   private readonly token: string;
   private ws: WebSocket | null = null;
   private nextId = 1;
@@ -22,7 +39,24 @@ export class LspClient {
 
   constructor(args: {
     workspaceId: string;
-    language: 'typescript' | 'javascript' | 'python' | 'c';
+    language:
+      | 'typescript'
+      | 'javascript'
+      | 'python'
+      | 'c'
+      | 'cpp'
+      | 'html'
+      | 'css'
+      | 'json'
+      | 'yaml'
+      | 'bash'
+      | 'dockerfile'
+      | 'php'
+      | 'sql'
+      | 'go'
+      | 'rust'
+      | 'lua'
+      | 'java';
     token: string;
   }) {
     this.workspaceId = args.workspaceId;

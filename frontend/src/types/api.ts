@@ -70,7 +70,29 @@ export interface AdminSettings {
   allow_registration: boolean;
   max_upload_size: number;
   default_quota: number;
+  inventory_pro: {
+    enabled: boolean;
+    base_url: string;
+    sync_enabled: boolean;
+    sso_enabled: boolean;
+    enforce_sso: boolean;
+    auto_provision_users: boolean;
+    dock_enabled: boolean;
+    default_role_name: string;
+    has_shared_secret: boolean;
+    sync_endpoint: string;
+    sso_ticket_endpoint: string;
+    sso_exchange_endpoint: string;
+  };
   updated_at: string | null;
+}
+
+export interface InventoryProContext {
+  enabled: boolean;
+  dock_enabled: boolean;
+  base_url: string;
+  launch_url: string;
+  available: boolean;
 }
 
 export type DockPosition = 'bottom' | 'left' | 'right';

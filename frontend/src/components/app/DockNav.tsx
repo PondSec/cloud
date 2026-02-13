@@ -1,5 +1,7 @@
+import { useQuery } from '@tanstack/react-query';
 import {
   Activity,
+  Boxes,
   Code2,
   Image,
   FolderOpen,
@@ -16,6 +18,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Dock from '@/components/reactbits/Dock';
 import { DEFAULT_DOCK_ORDER, useUiPrefs } from '@/contexts/UiPrefsContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { api } from '@/lib/api';
 import { hasAnyPermission, hasPermission, isAdmin, PERMISSIONS } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +27,12 @@ export function DockNav() {
   const location = useLocation();
   const { data: user } = useCurrentUser();
   const { prefs } = useUiPrefs();
+  const inventoryProContextQuery = useQuery({
+    queryKey: ['auth', 'inventorypro-context'],
+    queryFn: api.auth.inventoryProContext,
+    enabled: Boolean(user),
+  });
+  const inventoryProContext = inventoryProContextQuery.data;
 
   const items = useMemo(() => {
     const dockOrder = Array.isArray(prefs.dockOrder) && prefs.dockOrder.length > 0 ? prefs.dockOrder : DEFAULT_DOCK_ORDER;
@@ -94,6 +103,13 @@ export function DockNav() {
         order: 90,
       },
       { label: 'Einstellungen', path: '/app/settings', icon: <Settings size={18} />, visible: true, order: 100 },
+      {
+        label: 'Inventory Pro',
+        path: '/app/inventorypro',
+        icon: <Boxes size={18} />,
+        visible: Boolean(inventoryProContext?.available),
+        order: 110,
+      },
     ];
 
     const base = candidates
@@ -119,9 +135,18 @@ export function DockNav() {
           : location.pathname === item.path
             ? 'active'
             : '',
-      onClick: () => navigate(item.path),
+      onClick: () => {
+        if (item.path === '/app/inventorypro') {
+          const launchUrl = inventoryProContext?.launch_url;
+          if (launchUrl) {
+            window.open(launchUrl, '_blank', 'noopener,noreferrer');
+          }
+          return;
+        }
+        navigate(item.path);
+      },
     }));
-  }, [location.pathname, navigate, prefs.dockOrder, user]);
+  }, [inventoryProContext?.available, inventoryProContext?.launch_url, location.pathname, navigate, prefs.dockOrder, user]);
 
   const isVertical = prefs.dockPosition !== 'bottom';
   const wrapperClass = cn(

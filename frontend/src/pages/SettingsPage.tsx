@@ -20,6 +20,7 @@ const DOCK_ENTRIES: Array<{ path: string; label: string }> = [
   { path: '/app/admin', label: 'Verwaltung' },
   { path: '/app/monitoring', label: 'System' },
   { path: '/app/settings', label: 'Einstellungen' },
+  { path: '/app/inventorypro', label: 'Inventory Pro' },
 ];
 
 export function SettingsPage() {

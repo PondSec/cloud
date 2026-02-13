@@ -17,6 +17,7 @@ import type {
   NetworkResponse,
   OnlyOfficeSession,
   Permission,
+  InventoryProContext,
   ResourceQuota,
   ResourceQuotaUsage,
   RestorePoint,
@@ -115,6 +116,14 @@ export const api = {
       const { data } = await client.get<{ user: User }>('/auth/me');
       return data.user;
     },
+    async inventoryProContext(): Promise<InventoryProContext> {
+      const { data } = await client.get<{ inventory_pro: InventoryProContext }>('/auth/inventorypro/context');
+      return data.inventory_pro;
+    },
+    async inventoryProExchange(ticket: string): Promise<AuthResponse> {
+      const { data } = await client.post<AuthResponse>('/auth/inventorypro/exchange', { ticket });
+      return data;
+    },
     async register(username: string, password: string): Promise<AuthResponse | { user: User }> {
       const { data } = await client.post<AuthResponse | { user: User }>('/auth/register', {
         username,
@@ -204,7 +213,7 @@ export const api = {
       const { data } = await client.get<{ settings: AdminSettings }>('/admin/settings');
       return data.settings;
     },
-    async updateSettings(payload: Partial<AdminSettings>): Promise<AdminSettings> {
+    async updateSettings(payload: Record<string, unknown>): Promise<AdminSettings> {
       const { data } = await client.put<{ settings: AdminSettings }>('/admin/settings', payload);
       return data.settings;
     },

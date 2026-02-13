@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -17,6 +17,7 @@ export function LoginPage() {
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const consumedTicketRef = useRef<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: () => api.auth.login(username, password),
@@ -29,6 +30,30 @@ export function LoginPage() {
     },
     onError: (error) => toast.error(toApiMessage(error)),
   });
+
+  const inventoryExchangeMutation = useMutation({
+    mutationFn: (ticket: string) => api.auth.inventoryProExchange(ticket),
+    onSuccess: async (response) => {
+      setAuthSession(response.access_token, response.refresh_token);
+      await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+      const redirectPath = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname;
+      navigate(redirectPath ?? '/app/home', { replace: true });
+      toast.success('SSO erfolgreich. Willkommen in Ihrer Cloud.');
+    },
+    onError: (error) => {
+      toast.error(toApiMessage(error));
+      navigate('/login', { replace: true });
+    },
+  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const ticket = params.get('inventory_sso_ticket') || params.get('sso_ticket');
+    if (!ticket) return;
+    if (consumedTicketRef.current === ticket) return;
+    consumedTicketRef.current = ticket;
+    inventoryExchangeMutation.mutate(ticket);
+  }, [inventoryExchangeMutation, location.search]);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center p-6">
@@ -82,7 +107,7 @@ export function LoginPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Anmeldung wird vorbereitet...' : 'Sicher anmelden'}
+            {mutation.isPending || inventoryExchangeMutation.isPending ? 'Anmeldung wird vorbereitet...' : 'Sicher anmelden'}
           </Button>
         </form>
       </GlassSurface>

@@ -72,6 +72,16 @@ export function AdminPage() {
   const [allowRegistration, setAllowRegistration] = useState(false);
   const [maxUploadSize, setMaxUploadSize] = useState('26214400');
   const [defaultQuota, setDefaultQuota] = useState('5368709120');
+  const [inventoryEnabled, setInventoryEnabled] = useState(false);
+  const [inventoryBaseUrl, setInventoryBaseUrl] = useState('');
+  const [inventorySyncEnabled, setInventorySyncEnabled] = useState(true);
+  const [inventorySsoEnabled, setInventorySsoEnabled] = useState(true);
+  const [inventoryEnforceSso, setInventoryEnforceSso] = useState(false);
+  const [inventoryAutoProvisionUsers, setInventoryAutoProvisionUsers] = useState(true);
+  const [inventoryDockEnabled, setInventoryDockEnabled] = useState(true);
+  const [inventoryDefaultRoleName, setInventoryDefaultRoleName] = useState('user');
+  const [inventorySharedSecret, setInventorySharedSecret] = useState('');
+  const [inventoryClearSecret, setInventoryClearSecret] = useState(false);
 
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -132,6 +142,16 @@ export function AdminPage() {
     setAllowRegistration(settingsQuery.data.allow_registration);
     setMaxUploadSize(String(settingsQuery.data.max_upload_size));
     setDefaultQuota(String(settingsQuery.data.default_quota));
+    setInventoryEnabled(settingsQuery.data.inventory_pro?.enabled ?? false);
+    setInventoryBaseUrl(settingsQuery.data.inventory_pro?.base_url ?? '');
+    setInventorySyncEnabled(settingsQuery.data.inventory_pro?.sync_enabled ?? true);
+    setInventorySsoEnabled(settingsQuery.data.inventory_pro?.sso_enabled ?? true);
+    setInventoryEnforceSso(settingsQuery.data.inventory_pro?.enforce_sso ?? false);
+    setInventoryAutoProvisionUsers(settingsQuery.data.inventory_pro?.auto_provision_users ?? true);
+    setInventoryDockEnabled(settingsQuery.data.inventory_pro?.dock_enabled ?? true);
+    setInventoryDefaultRoleName(settingsQuery.data.inventory_pro?.default_role_name ?? 'user');
+    setInventorySharedSecret('');
+    setInventoryClearSecret(false);
   }, [settingsQuery.data]);
 
   useEffect(() => {
@@ -171,10 +191,25 @@ export function AdminPage() {
         allow_registration: allowRegistration,
         max_upload_size: Number(maxUploadSize),
         default_quota: Number(defaultQuota),
+        inventory_pro: {
+          enabled: inventoryEnabled,
+          base_url: inventoryBaseUrl,
+          sync_enabled: inventorySyncEnabled,
+          sso_enabled: inventorySsoEnabled,
+          enforce_sso: inventoryEnforceSso,
+          auto_provision_users: inventoryAutoProvisionUsers,
+          dock_enabled: inventoryDockEnabled,
+          default_role_name: inventoryDefaultRoleName,
+          shared_secret: inventorySharedSecret || undefined,
+          clear_shared_secret: inventoryClearSecret,
+        },
       }),
     onSuccess: async () => {
       toast.success('Einstellungen aktualisiert');
+      setInventorySharedSecret('');
+      setInventoryClearSecret(false);
       await queryClient.invalidateQueries({ queryKey: ['admin', 'settings'] });
+      await queryClient.invalidateQueries({ queryKey: ['auth', 'inventorypro-context'] });
     },
     onError: (error) => toast.error(toApiMessage(error)),
   });
@@ -358,6 +393,113 @@ export function AdminPage() {
                   <label className="mb-1 block text-sm text-zinc-300">Standard-Quota (Bytes)</label>
                   <Input value={defaultQuota} onChange={(event) => setDefaultQuota(event.target.value)} />
                 </div>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-cyan-300/20 bg-cyan-500/5 p-3">
+                <div>
+                  <h3 className="font-medium text-zinc-100">InventoryPro Integration</h3>
+                  <p className="text-xs text-zinc-300">
+                    Zentrale Benutzerverwaltung, SSO und Dock-Verknüpfung zwischen InventoryPro und Cloud.
+                  </p>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm text-zinc-200">
+                  <input
+                    type="checkbox"
+                    checked={inventoryEnabled}
+                    onChange={(event) => setInventoryEnabled(event.target.checked)}
+                  />
+                  Integration aktivieren
+                </label>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm text-zinc-300">InventoryPro URL</label>
+                    <Input
+                      placeholder="https://inv.example.com"
+                      value={inventoryBaseUrl}
+                      onChange={(event) => setInventoryBaseUrl(event.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm text-zinc-300">Standardrolle bei Sync</label>
+                    <Input value={inventoryDefaultRoleName} onChange={(event) => setInventoryDefaultRoleName(event.target.value)} />
+                  </div>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <label className="flex items-center gap-2 text-sm text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={inventorySyncEnabled}
+                      onChange={(event) => setInventorySyncEnabled(event.target.checked)}
+                    />
+                    Benutzer-Sync aktivieren
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={inventoryAutoProvisionUsers}
+                      onChange={(event) => setInventoryAutoProvisionUsers(event.target.checked)}
+                    />
+                    Benutzer auto-anlegen
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={inventorySsoEnabled}
+                      onChange={(event) => setInventorySsoEnabled(event.target.checked)}
+                    />
+                    SSO aktivieren
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={inventoryEnforceSso}
+                      onChange={(event) => setInventoryEnforceSso(event.target.checked)}
+                    />
+                    Nur SSO erlauben
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={inventoryDockEnabled}
+                      onChange={(event) => setInventoryDockEnabled(event.target.checked)}
+                    />
+                    InventoryPro im Dock anzeigen
+                  </label>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm text-zinc-300">Shared Secret (nur bei Änderung ausfüllen)</label>
+                    <Input
+                      type="password"
+                      value={inventorySharedSecret}
+                      onChange={(event) => setInventorySharedSecret(event.target.value)}
+                    />
+                  </div>
+                  <label className="mt-6 flex items-center gap-2 text-sm text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={inventoryClearSecret}
+                      onChange={(event) => setInventoryClearSecret(event.target.checked)}
+                    />
+                    Shared Secret löschen
+                  </label>
+                </div>
+
+                <p className="text-xs text-zinc-400">
+                  Shared Secret gesetzt: {settingsQuery.data?.inventory_pro?.has_shared_secret ? 'Ja' : 'Nein'}
+                </p>
+
+                {settingsQuery.data?.inventory_pro ? (
+                  <div className="rounded-lg border border-white/10 bg-black/25 p-2 text-xs text-zinc-300">
+                    <p>Sync Endpoint: {settingsQuery.data.inventory_pro.sync_endpoint}</p>
+                    <p>SSO Ticket Endpoint: {settingsQuery.data.inventory_pro.sso_ticket_endpoint}</p>
+                    <p>SSO Exchange Endpoint: {settingsQuery.data.inventory_pro.sso_exchange_endpoint}</p>
+                  </div>
+                ) : null}
               </div>
 
               <Button onClick={() => saveSettingsMutation.mutate()} disabled={saveSettingsMutation.isPending}>

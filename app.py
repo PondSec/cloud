@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -28,6 +29,42 @@ IDE_API_HEALTH_URL = "http://127.0.0.1:18080/health"
 MANAGED_ONLYOFFICE_CONTAINER = "cloud-onlyoffice"
 MANAGED_ONLYOFFICE_PORT = "8081"
 MANAGED_ONLYOFFICE_JWT_SECRET = "cloud-onlyoffice-jwt-secret-at-least-32-bytes"
+
+
+def guess_lan_ip() -> str | None:
+    """
+    Best-effort LAN IP detection.
+
+    Used to print usable URLs + wire Vite env vars when we bind dev servers to 0.0.0.0.
+    """
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            # No packets are sent; this just picks the default outbound interface.
+            sock.connect(("8.8.8.8", 80))
+            ip = sock.getsockname()[0]
+        if ip and not ip.startswith("127."):
+            return ip
+    except OSError:
+        return None
+    return None
+
+
+def tcp_port_available(host: str, port: int) -> bool:
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    with socket.socket(family, socket.SOCK_STREAM) as sock:
+        try:
+            sock.bind((host, port))
+        except OSError:
+            return False
+    return True
+
+
+def lsof_listeners(port: int) -> str | None:
+    if not command_exists("lsof"):
+        return None
+    proc = run_capture(["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"])
+    output = (proc.stdout or "").strip()
+    return output or None
 
 
 def run_checked(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None) -> None:
@@ -363,6 +400,7 @@ def terminate_processes(processes: list[subprocess.Popen[str]]) -> None:
 
 def start_backend(
     python_executable: Path,
+    host: str,
     port: int,
     env_overrides: dict[str, str] | None = None,
 ) -> subprocess.Popen[str]:
@@ -383,7 +421,7 @@ def start_backend(
             "wsgi:app",
             "run",
             "--host",
-            "127.0.0.1",
+            host,
             "--port",
             str(port),
         ],
@@ -392,10 +430,10 @@ def start_backend(
     )
 
 
-def start_frontend(port: int, backend_port: int) -> subprocess.Popen[str]:
+def start_frontend(port: int, backend_port: int, public_host: str) -> subprocess.Popen[str]:
     env = os.environ.copy()
-    env["VITE_API_BASE_URL"] = f"http://127.0.0.1:{backend_port}"
-    env.setdefault("VITE_IDE_API_BASE_URL", "http://127.0.0.1:18080")
+    env["VITE_API_BASE_URL"] = f"http://{public_host}:{backend_port}"
+    env.setdefault("VITE_IDE_API_BASE_URL", f"http://{public_host}:18080")
     env["FORCE_COLOR"] = "1"
     npm = npm_command()
     return subprocess.Popen(
@@ -405,7 +443,7 @@ def start_frontend(port: int, backend_port: int) -> subprocess.Popen[str]:
             "dev",
             "--",
             "--host",
-            "127.0.0.1",
+            "0.0.0.0",
             "--port",
             str(port),
             "--strictPort",
@@ -417,7 +455,7 @@ def start_frontend(port: int, backend_port: int) -> subprocess.Popen[str]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Start Cloud Workspace (backend + frontend).")
-    parser.add_argument("--backend-port", type=int, default=5000)
+    parser.add_argument("--backend-port", type=int, default=5002)
     parser.add_argument("--frontend-port", type=int, default=5173)
     parser.add_argument("--admin-user", default="admin")
     parser.add_argument("--admin-password", default="admin123")
@@ -429,6 +467,25 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    listen_host = "0.0.0.0"
+    public_host = guess_lan_ip() or "127.0.0.1"
+
+    if not tcp_port_available(listen_host, args.backend_port):
+        print(f"[error] Backend port {args.backend_port} is already in use.")
+        listeners = lsof_listeners(args.backend_port)
+        if listeners:
+            print(listeners)
+        if args.backend_port == 5000:
+            print("[hint] On macOS, Control Center (AirPlay Receiver) often binds :5000. Disable 'AirPlay Receiver'.")
+        print(f"[hint] Or run: python3 app.py --backend-port {args.backend_port + 1}")
+        return 1
+    if not args.backend_only and not tcp_port_available("0.0.0.0", args.frontend_port):
+        print(f"[error] Frontend port {args.frontend_port} is already in use.")
+        listeners = lsof_listeners(args.frontend_port)
+        if listeners:
+            print(listeners)
+        print(f"[hint] Run: python3 app.py --frontend-port {args.frontend_port + 1}")
+        return 1
 
     if not command_exists(sys.executable):
         raise RuntimeError("Python interpreter is not available.")
@@ -447,6 +504,14 @@ def main() -> int:
         ide_enabled = ensure_ide_services()
 
     backend_env_overrides: dict[str, str] = {}
+    if "FRONTEND_ORIGIN" not in os.environ and "FRONTEND_ORIGINS" not in os.environ:
+        origins = [
+            f"http://localhost:{args.frontend_port}",
+            f"http://127.0.0.1:{args.frontend_port}",
+        ]
+        if public_host not in {"127.0.0.1", "localhost"}:
+            origins.append(f"http://{public_host}:{args.frontend_port}")
+        backend_env_overrides["FRONTEND_ORIGINS"] = ",".join(origins)
     onlyoffice_requested = os.environ.get("ONLYOFFICE_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
     chosen_onlyoffice_url: str | None = None
     chosen_onlyoffice_jwt_secret = (os.environ.get("ONLYOFFICE_JWT_SECRET") or "").strip() or None
@@ -515,20 +580,33 @@ def main() -> int:
     frontend_process: subprocess.Popen[str] | None = None
 
     try:
-        backend_process = start_backend(backend_python, port=args.backend_port, env_overrides=backend_env_overrides)
+        backend_process = start_backend(
+            backend_python,
+            host=listen_host,
+            port=args.backend_port,
+            env_overrides=backend_env_overrides,
+        )
         processes.append(backend_process)
 
         wait_for_http(f"http://127.0.0.1:{args.backend_port}/health", timeout_seconds=35)
 
         if not args.backend_only:
-            frontend_process = start_frontend(port=args.frontend_port, backend_port=args.backend_port)
+            frontend_process = start_frontend(
+                port=args.frontend_port,
+                backend_port=args.backend_port,
+                public_host=public_host,
+            )
             processes.append(frontend_process)
 
         print("")
         print("Cloud Workspace is running")
         print(f"Backend:  http://127.0.0.1:{args.backend_port}")
+        if public_host != "127.0.0.1":
+            print(f"Backend:  http://{public_host}:{args.backend_port}")
         if not args.backend_only:
             print(f"Frontend: http://127.0.0.1:{args.frontend_port}")
+            if public_host != "127.0.0.1":
+                print(f"Frontend: http://{public_host}:{args.frontend_port}")
             if ide_enabled:
                 print(f"IDE UI:   http://127.0.0.1:{args.frontend_port}/dev/workspaces")
                 print("IDE API:  http://127.0.0.1:18080")

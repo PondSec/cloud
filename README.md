@@ -26,7 +26,7 @@ python3 app.py
 - auto-manage backend Python runtime under `.runtime/`,
 - install missing `backend/` and `frontend/` dependencies,
 - seed admin user (`admin` / `admin123`),
-- start Flask on `http://127.0.0.1:5000`,
+- start Flask on `http://127.0.0.1:5002`,
 - start frontend on `http://127.0.0.1:5173`,
 - try to auto-start IDE services (`ide-backend` + `runner`) via Docker Compose.
 

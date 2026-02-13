@@ -1,5 +1,5 @@
 import { Keyboard } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { DockNav } from '@/components/app/DockNav';
@@ -12,9 +12,8 @@ import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 
 export function AppShell() {
-  const {
-    prefs: { effectsQuality, animationsEnabled },
-  } = useUiPrefs();
+  const { prefs } = useUiPrefs();
+  const { effectsQuality, animationsEnabled } = prefs;
   const navigate = useNavigate();
   const location = useLocation();
   const { data: user } = useCurrentUser();
@@ -121,12 +120,30 @@ export function AppShell() {
     setShortcutsOpen(false);
   }, [location.pathname]);
 
+  const accentHue = prefs.accentHue;
+  const accentHsl = `${prefs.accentHue} ${prefs.accentSaturation}% ${prefs.accentLightness}%`;
+  const accentColor = `hsl(${accentHsl})`;
+  const secondaryHue = (accentHue + 135) % 360;
+  const secondaryColor = `hsl(${secondaryHue} 84% 72%)`;
+  const shellStyle = useMemo<CSSProperties>(
+    () =>
+      ({
+        '--cloud-accent-hsl': accentHsl,
+        '--cloud-corner-radius': `${prefs.cornerRadius}px`,
+        '--cloud-ui-scale': String(prefs.uiScale),
+        '--cloud-panel-opacity': String(prefs.panelOpacity),
+      }) as CSSProperties,
+    [accentHsl, prefs.cornerRadius, prefs.panelOpacity, prefs.uiScale],
+  );
+  const paneRadius = Math.max(10, prefs.cornerRadius - 2);
+  const panelBackground = `hsl(228 54% 9% / ${Math.max(0.1, Math.min(0.9, prefs.panelOpacity + 0.56))})`;
+
   return (
-    <div className="relative min-h-screen overflow-hidden pb-24">
+    <div className="cloud-theme-root relative min-h-screen overflow-hidden pb-24" style={shellStyle}>
       <div className="pointer-events-none absolute inset-0">
         <LightPillar
-          topColor="#4FD8FF"
-          bottomColor="#FF80CE"
+          topColor={accentColor}
+          bottomColor={secondaryColor}
           intensity={effectsQuality === 'low' ? 0.26 : 0.36}
           rotationSpeed={animationsEnabled ? 0.11 : 0}
           glowAmount={effectsQuality === 'high' ? 0.003 : 0.0016}
@@ -144,13 +161,13 @@ export function AppShell() {
         <GlassSurface
           width="100%"
           height="100%"
-          borderRadius={28}
+          borderRadius={prefs.cornerRadius + 6}
           backgroundOpacity={0.1}
           saturation={1.6}
           className="h-full border border-white/20"
           displace={0.42}
         >
-          <div className="h-full w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#090d22b3]">
+          <div className="h-full w-full overflow-hidden border border-white/10" style={{ borderRadius: paneRadius, backgroundColor: panelBackground }}>
             <div className="group border-b border-white/10 bg-black/20">
               <div className="flex items-center justify-between gap-2 px-4 py-2">
                 <div className="min-w-0">

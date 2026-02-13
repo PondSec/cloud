@@ -5,15 +5,20 @@ import { Children, cloneElement, useEffect, useMemo, useRef, useState } from 're
 
 import './Dock.css';
 
-function DockItem({ children, className = '', onClick, mouseX, spring, distance, magnification, baseItemSize }) {
+function DockItem({ children, className = '', onClick, mouseX, mouseY, axis, spring, distance, magnification, baseItemSize }) {
   const ref = useRef(null);
   const isHovered = useMotionValue(0);
 
-  const mouseDistance = useTransform(mouseX, (val) => {
+  const mouseDistance = useTransform(axis === 'y' ? mouseY : mouseX, (val) => {
     const rect = ref.current?.getBoundingClientRect() ?? {
       x: 0,
+      y: 0,
       width: baseItemSize,
+      height: baseItemSize,
     };
+    if (axis === 'y') {
+      return val - rect.y - baseItemSize / 2;
+    }
     return val - rect.x - baseItemSize / 2;
   });
 
@@ -91,27 +96,48 @@ export default function Dock({
   panelHeight = 68,
   dockHeight = 256,
   baseItemSize = 50,
+  orientation = 'horizontal',
+  edge = 'bottom',
+  style = {},
 }) {
   const mouseX = useMotionValue(Infinity);
+  const mouseY = useMotionValue(Infinity);
   const isHovered = useMotionValue(0);
 
   const maxHeight = useMemo(() => Math.max(dockHeight, magnification + magnification / 2 + 4), [magnification, dockHeight]);
   const heightRow = useTransform(isHovered, [0, 1], [panelHeight, maxHeight]);
   const height = useSpring(heightRow, spring);
+  const isVertical = orientation === 'vertical';
+  const panelSizeStyle = isVertical ? { width: panelHeight } : { height: panelHeight };
+  const outerSizeStyle = isVertical ? { width: height } : { height };
+  const outerAlignStyle = useMemo(() => {
+    if (!isVertical) {
+      return { justifyContent: 'center', alignItems: 'flex-end' as const };
+    }
+    if (edge === 'right') {
+      return { justifyContent: 'flex-end' as const, alignItems: 'center' as const };
+    }
+    return { justifyContent: 'flex-start' as const, alignItems: 'center' as const };
+  }, [edge, isVertical]);
 
   return (
-    <motion.div style={{ height, scrollbarWidth: 'none' }} className="dock-outer">
+    <motion.div
+      style={{ ...outerSizeStyle, ...outerAlignStyle, scrollbarWidth: 'none' }}
+      className={`dock-outer ${isVertical ? 'vertical' : ''}`}
+    >
       <motion.div
-        onMouseMove={({ pageX }) => {
+        onMouseMove={({ pageX, pageY }) => {
           isHovered.set(1);
           mouseX.set(pageX);
+          mouseY.set(pageY);
         }}
         onMouseLeave={() => {
           isHovered.set(0);
           mouseX.set(Infinity);
+          mouseY.set(Infinity);
         }}
-        className={`dock-panel ${className}`}
-        style={{ height: panelHeight }}
+        className={`dock-panel ${isVertical ? 'vertical' : 'horizontal'} ${className}`}
+        style={{ ...panelSizeStyle, ...style }}
         role="toolbar"
         aria-label="App-Dock"
       >
@@ -121,6 +147,8 @@ export default function Dock({
             onClick={item.onClick}
             className={item.className}
             mouseX={mouseX}
+            mouseY={mouseY}
+            axis={isVertical ? 'y' : 'x'}
             spring={spring}
             distance={distance}
             magnification={magnification}

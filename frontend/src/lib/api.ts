@@ -24,6 +24,7 @@ import type {
   ShareAccess,
   StorageResponse,
   SharedWithMeItem,
+  UiPreferences,
   User,
 } from '@/types/api';
 import { clearAuthSession, getAccessToken, getRefreshToken, setAccessToken } from './auth-storage';
@@ -119,6 +120,21 @@ export const api = {
         username,
         password,
       });
+      return data;
+    },
+    async uiPreferences(): Promise<{ user_id: number; preferences: UiPreferences; updated_at: string | null }> {
+      const { data } = await client.get<{ user_id: number; preferences: UiPreferences; updated_at: string | null }>(
+        '/auth/ui-preferences',
+      );
+      return data;
+    },
+    async updateUiPreferences(
+      payload: Partial<UiPreferences>,
+    ): Promise<{ user_id: number; preferences: UiPreferences; updated_at: string | null }> {
+      const { data } = await client.put<{ user_id: number; preferences: UiPreferences; updated_at: string | null }>(
+        '/auth/ui-preferences',
+        payload,
+      );
       return data;
     },
   },

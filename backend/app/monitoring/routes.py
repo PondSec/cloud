@@ -172,6 +172,20 @@ def overview():
         )
         latest_snapshot = SystemMetricSnapshot.query.order_by(SystemMetricSnapshot.ts.desc()).first()
 
+        def metric(primary_key: str, snapshot_key: str) -> Any:
+            primary_value = host.get(primary_key)
+            if primary_value is not None:
+                return primary_value
+            if latest_snapshot is None:
+                return None
+            return getattr(latest_snapshot, snapshot_key)
+
+        cpu_percent = metric("cpu_percent", "cpu_percent")
+        memory_percent = metric("memory_percent", "memory_percent")
+        disk_percent = metric("disk_percent", "disk_percent")
+        net_bytes_sent = metric("net_bytes_sent", "net_bytes_sent")
+        net_bytes_recv = metric("net_bytes_recv", "net_bytes_recv")
+
         messages: list[str] = []
         if not host.get("available"):
             messages.append("Host metric provider is degraded (psutil unavailable).")
@@ -188,15 +202,22 @@ def overview():
                 "messages": messages,
             },
             "kpis": {
-                "cpu_percent": host.get("cpu_percent"),
-                "memory_percent": host.get("memory_percent"),
-                "disk_percent": host.get("disk_percent"),
+                "cpu_percent": cpu_percent,
+                "memory_percent": memory_percent,
+                "disk_percent": disk_percent,
                 "network_total_bytes": {
-                    "sent": host.get("net_bytes_sent"),
-                    "recv": host.get("net_bytes_recv"),
+                    "sent": net_bytes_sent,
+                    "recv": net_bytes_recv,
                 },
             },
-            "host": host,
+            "host": {
+                **host,
+                "cpu_percent": cpu_percent,
+                "memory_percent": memory_percent,
+                "disk_percent": disk_percent,
+                "net_bytes_sent": net_bytes_sent,
+                "net_bytes_recv": net_bytes_recv,
+            },
             "containers": {
                 "available": bool(containers.get("available")),
                 "reason": containers.get("reason"),

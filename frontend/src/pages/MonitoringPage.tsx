@@ -65,6 +65,11 @@ function formatPercent(value: number | null | undefined): string {
   return `${value.toFixed(1)}%`;
 }
 
+function formatBytesNullable(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return 'k.A.';
+  return formatBytes(value);
+}
+
 function formatUptime(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return 'k.A.';
   const d = Math.floor(seconds / 86400);
@@ -369,11 +374,30 @@ export function MonitoringPage() {
     if (overviewQuery.data?.health.messages) {
       messages.push(...overviewQuery.data.health.messages);
     }
+    if (overviewQuery.isError) {
+      messages.push(`Overview API: ${toApiMessage(overviewQuery.error)}`);
+    }
     if (containersQuery.data && !containersQuery.data.available && containersQuery.data.reason) {
       messages.push(containersQuery.data.reason);
     }
     return [...new Set(messages)];
-  }, [containersQuery.data, overviewQuery.data?.health.messages]);
+  }, [containersQuery.data, overviewQuery.data?.health.messages, overviewQuery.error, overviewQuery.isError]);
+
+  const kpiCpu = overviewQuery.isLoading
+    ? 'laedt...'
+    : formatPercent(overviewQuery.data?.kpis.cpu_percent ?? overviewQuery.data?.host.cpu_percent);
+  const kpiMemory = overviewQuery.isLoading
+    ? 'laedt...'
+    : formatPercent(overviewQuery.data?.kpis.memory_percent ?? overviewQuery.data?.host.memory_percent);
+  const kpiDisk = overviewQuery.isLoading
+    ? 'laedt...'
+    : formatPercent(overviewQuery.data?.kpis.disk_percent ?? overviewQuery.data?.host.disk_percent);
+  const kpiNetIn = overviewQuery.isLoading
+    ? 'laedt...'
+    : formatBytesNullable(overviewQuery.data?.kpis.network_total_bytes.recv ?? overviewQuery.data?.host.net_bytes_recv);
+  const kpiNetOut = overviewQuery.isLoading
+    ? 'laedt...'
+    : formatBytesNullable(overviewQuery.data?.kpis.network_total_bytes.sent ?? overviewQuery.data?.host.net_bytes_sent);
 
   const refreshAll = async () => {
     await queryClient.invalidateQueries({ queryKey: ['monitoring'] });
@@ -477,14 +501,19 @@ export function MonitoringPage() {
 
         {activeTab === 'overview' ? (
           <div className="space-y-4">
+            {overviewQuery.isError ? (
+              <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 p-3 text-sm text-rose-100">
+                Overview-Metriken konnten nicht geladen werden: {toApiMessage(overviewQuery.error)}
+              </div>
+            ) : null}
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <KpiCard label="CPU" value={formatPercent(overviewQuery.data?.kpis.cpu_percent)} detail="Host-Auslastung" />
-              <KpiCard label="RAM" value={formatPercent(overviewQuery.data?.kpis.memory_percent)} detail="Arbeitsspeicher" />
-              <KpiCard label="Disk" value={formatPercent(overviewQuery.data?.kpis.disk_percent)} detail="Speichernutzung" />
+              <KpiCard label="CPU" value={kpiCpu} detail="Host-Auslastung" />
+              <KpiCard label="RAM" value={kpiMemory} detail="Arbeitsspeicher" />
+              <KpiCard label="Disk" value={kpiDisk} detail="Speichernutzung" />
               <KpiCard
                 label="Netzwerk"
-                value={`${formatBytes(overviewQuery.data?.kpis.network_total_bytes.recv ?? 0)} in`}
-                detail={`${formatBytes(overviewQuery.data?.kpis.network_total_bytes.sent ?? 0)} out`}
+                value={`${kpiNetIn} in`}
+                detail={`${kpiNetOut} out`}
               />
             </div>
 

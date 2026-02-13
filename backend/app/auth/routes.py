@@ -12,10 +12,139 @@ from ..common.rate_limit import login_rate_limiter
 from ..common.rbac import current_user
 from ..extensions import db
 from ..monitoring.quotas import get_or_create_quota
-from ..models import AppSettings, Role, User
+from ..models import AppSettings, Role, User, UserUiPreference
 
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
+ALLOWED_DOCK_PATHS = [
+    "/app/home",
+    "/app/files",
+    "/app/search",
+    "/app/recents",
+    "/app/shared",
+    "/app/media",
+    "/dev/workspaces",
+    "/app/admin",
+    "/app/monitoring",
+    "/app/settings",
+]
+
+DEFAULT_UI_PREFERENCES: dict[str, Any] = {
+    "effectsQuality": "medium",
+    "animationsEnabled": True,
+    "cornerRadius": 22,
+    "panelOpacity": 0.1,
+    "uiScale": 1.0,
+    "accentHue": 188,
+    "accentSaturation": 88,
+    "accentLightness": 70,
+    "dockPosition": "bottom",
+    "dockEdgeOffset": 0,
+    "dockBaseItemSize": 48,
+    "dockMagnification": 68,
+    "dockPanelHeight": 62,
+    "dockOrder": ALLOWED_DOCK_PATHS,
+}
+
+
+def _clamp_float(value: Any, minimum: float, maximum: float, fallback: float) -> float:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return fallback
+    return max(minimum, min(maximum, numeric))
+
+
+def _clamp_int(value: Any, minimum: int, maximum: int, fallback: int) -> int:
+    try:
+        numeric = int(value)
+    except (TypeError, ValueError):
+        return fallback
+    return max(minimum, min(maximum, numeric))
+
+
+def _normalize_dock_order(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return list(ALLOWED_DOCK_PATHS)
+
+    seen: set[str] = set()
+    normalized: list[str] = []
+    for entry in value:
+        if not isinstance(entry, str):
+            continue
+        path = entry.strip()
+        if path not in ALLOWED_DOCK_PATHS or path in seen:
+            continue
+        seen.add(path)
+        normalized.append(path)
+
+    for path in ALLOWED_DOCK_PATHS:
+        if path in seen:
+            continue
+        normalized.append(path)
+    return normalized
+
+
+def _sanitize_ui_preferences(raw: dict[str, Any] | None) -> dict[str, Any]:
+    payload = raw or {}
+    quality = payload.get("effectsQuality")
+    if quality not in {"low", "medium", "high"}:
+        quality = DEFAULT_UI_PREFERENCES["effectsQuality"]
+
+    dock_position = payload.get("dockPosition")
+    if dock_position not in {"bottom", "left", "right"}:
+        dock_position = DEFAULT_UI_PREFERENCES["dockPosition"]
+
+    return {
+        "effectsQuality": quality,
+        "animationsEnabled": bool(payload.get("animationsEnabled", DEFAULT_UI_PREFERENCES["animationsEnabled"])),
+        "cornerRadius": _clamp_int(payload.get("cornerRadius"), 10, 40, int(DEFAULT_UI_PREFERENCES["cornerRadius"])),
+        "panelOpacity": _clamp_float(payload.get("panelOpacity"), 0.05, 0.25, float(DEFAULT_UI_PREFERENCES["panelOpacity"])),
+        "uiScale": _clamp_float(payload.get("uiScale"), 0.9, 1.15, float(DEFAULT_UI_PREFERENCES["uiScale"])),
+        "accentHue": _clamp_int(payload.get("accentHue"), 0, 359, int(DEFAULT_UI_PREFERENCES["accentHue"])),
+        "accentSaturation": _clamp_int(
+            payload.get("accentSaturation"),
+            35,
+            100,
+            int(DEFAULT_UI_PREFERENCES["accentSaturation"]),
+        ),
+        "accentLightness": _clamp_int(payload.get("accentLightness"), 35, 85, int(DEFAULT_UI_PREFERENCES["accentLightness"])),
+        "dockPosition": dock_position,
+        "dockEdgeOffset": _clamp_int(
+            payload.get("dockEdgeOffset"),
+            0,
+            48,
+            int(DEFAULT_UI_PREFERENCES["dockEdgeOffset"]),
+        ),
+        "dockBaseItemSize": _clamp_int(
+            payload.get("dockBaseItemSize"),
+            40,
+            64,
+            int(DEFAULT_UI_PREFERENCES["dockBaseItemSize"]),
+        ),
+        "dockMagnification": _clamp_int(
+            payload.get("dockMagnification"),
+            54,
+            96,
+            int(DEFAULT_UI_PREFERENCES["dockMagnification"]),
+        ),
+        "dockPanelHeight": _clamp_int(
+            payload.get("dockPanelHeight"),
+            52,
+            84,
+            int(DEFAULT_UI_PREFERENCES["dockPanelHeight"]),
+        ),
+        "dockOrder": _normalize_dock_order(payload.get("dockOrder")),
+    }
+
+
+def _load_or_create_preferences(user: User) -> UserUiPreference:
+    prefs = user.ui_preferences
+    if prefs is None:
+        prefs = UserUiPreference(user_id=user.id, payload_json=dict(DEFAULT_UI_PREFERENCES))
+        db.session.add(prefs)
+        db.session.flush()
+    return prefs
 
 
 def _token_response(user: User) -> dict[str, Any]:
@@ -156,6 +285,56 @@ def me():
     user = current_user(required=True)
     assert user is not None
     return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.get("/ui-preferences")
+@jwt_required()
+def get_ui_preferences():
+    user = current_user(required=True)
+    assert user is not None
+
+    prefs = _load_or_create_preferences(user)
+    normalized = _sanitize_ui_preferences((prefs.payload_json or {}) if isinstance(prefs.payload_json, dict) else {})
+    if prefs.payload_json != normalized:
+        prefs.payload_json = normalized
+        db.session.add(prefs)
+        db.session.commit()
+
+    return jsonify(
+        {
+            "user_id": user.id,
+            "preferences": normalized,
+            "updated_at": prefs.updated_at.isoformat() if prefs.updated_at else None,
+        }
+    )
+
+
+@auth_bp.put("/ui-preferences")
+@jwt_required()
+def update_ui_preferences():
+    user = current_user(required=True)
+    assert user is not None
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        raise APIError(400, "INVALID_PARAMETER", "Preferences payload must be an object.")
+
+    prefs = _load_or_create_preferences(user)
+    existing = prefs.payload_json if isinstance(prefs.payload_json, dict) else {}
+    merged = {**existing, **payload}
+    normalized = _sanitize_ui_preferences(merged)
+
+    prefs.payload_json = normalized
+    db.session.add(prefs)
+    db.session.commit()
+
+    return jsonify(
+        {
+            "user_id": user.id,
+            "preferences": normalized,
+            "updated_at": prefs.updated_at.isoformat() if prefs.updated_at else None,
+        }
+    )
 
 
 @auth_bp.post("/refresh")

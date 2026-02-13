@@ -16,6 +16,7 @@
   --border: 222 33% 24%;
   --muted: 224 22% 18%;
   --muted-foreground: 221 18% 70%;
+  --cloud-accent-hsl: 188 88% 70%;
 }
 
 * {
@@ -40,6 +41,31 @@ h4 {
   font-family: 'Space Grotesk', ui-sans-serif, system-ui;
 }
 
+.cloud-theme-root {
+  --cloud-accent-hsl: 188 88% 70%;
+  --cloud-corner-radius: 22px;
+  --cloud-ui-scale: 1;
+  --cloud-panel-opacity: 0.1;
+  font-size: calc(16px * var(--cloud-ui-scale));
+  accent-color: hsl(var(--cloud-accent-hsl));
+}
+
+.cloud-theme-root .rounded-2xl {
+  border-radius: var(--cloud-corner-radius);
+}
+
+.cloud-theme-root .rounded-xl {
+  border-radius: calc(var(--cloud-corner-radius) * 0.78);
+}
+
+.cloud-theme-root .rounded-lg {
+  border-radius: calc(var(--cloud-corner-radius) * 0.62);
+}
+
+.cloud-theme-root .rounded-md {
+  border-radius: calc(var(--cloud-corner-radius) * 0.52);
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -52,11 +78,4 @@ h4 {
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.18);
   border-radius: 9999px;
-}
-
-.dock-item.active {
-  border-color: rgba(125, 252, 255, 0.7);
-  box-shadow:
-    0 0 0 1px rgba(125, 252, 255, 0.35),
-    0 0 24px rgba(125, 252, 255, 0.22);
 }

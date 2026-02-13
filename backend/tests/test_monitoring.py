@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.extensions import db
-from app.models import AuditLog, Role, SystemMetricSnapshot, User
+from app.models import AuditLog, Role, SystemMetricSnapshot, User, utc_now
 from app.monitoring.snapshots import run_snapshot_cycle
 
 
@@ -71,6 +71,55 @@ def test_snapshot_job_writes_to_db(app):
         assert SystemMetricSnapshot.query.count() == 0
         run_snapshot_cycle(Path(app.config["STORAGE_ROOT"]), retention_days=7)
         assert SystemMetricSnapshot.query.count() == 1
+
+
+def test_overview_uses_latest_snapshot_when_live_metrics_are_missing(client, app, monkeypatch):
+    _create_admin(app)
+
+    with app.app_context():
+        snapshot = SystemMetricSnapshot(
+            ts=utc_now(),
+            cpu_percent=21.5,
+            memory_percent=43.2,
+            disk_percent=62.4,
+            net_bytes_sent=1234,
+            net_bytes_recv=5678,
+        )
+        db.session.add(snapshot)
+        db.session.commit()
+
+    def degraded_host_metrics(_storage_root):
+        return {
+            "available": False,
+            "reason": "mocked",
+            "cpu_percent": None,
+            "memory_percent": None,
+            "disk_percent": None,
+            "disk_used_bytes": None,
+            "disk_total_bytes": None,
+            "disk_read_bytes": None,
+            "disk_write_bytes": None,
+            "disk_free_bytes": None,
+            "net_bytes_sent": None,
+            "net_bytes_recv": None,
+            "memory_used_bytes": None,
+            "memory_total_bytes": None,
+            "load_average": {"one": None, "five": None, "fifteen": None},
+            "per_interface": [],
+            "captured_at": utc_now().isoformat(),
+        }
+
+    monkeypatch.setattr("app.monitoring.routes.collect_host_metrics", degraded_host_metrics)
+
+    token = _token(client, "monitor-admin", "monitorpass123")
+    response = client.get("/api/monitoring/overview?nocache=1", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["kpis"]["cpu_percent"] == 21.5
+    assert payload["kpis"]["memory_percent"] == 43.2
+    assert payload["kpis"]["disk_percent"] == 62.4
+    assert payload["kpis"]["network_total_bytes"]["sent"] == 1234
+    assert payload["kpis"]["network_total_bytes"]["recv"] == 5678
 
 
 def test_options_preflight_does_not_require_jwt(client):

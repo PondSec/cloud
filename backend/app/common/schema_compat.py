@@ -50,6 +50,10 @@ def ensure_inventorypro_schema_compat() -> None:
             statements.append(
                 "ALTER TABLE app_settings ADD COLUMN inventory_pro_shared_secret_hash VARCHAR(255) NOT NULL DEFAULT ''"
             )
+        if "inventory_pro_shared_secret_plain" not in settings_columns:
+            statements.append(
+                "ALTER TABLE app_settings ADD COLUMN inventory_pro_shared_secret_plain VARCHAR(512) NOT NULL DEFAULT ''"
+            )
 
     if not statements:
         return

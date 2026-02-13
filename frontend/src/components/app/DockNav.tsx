@@ -135,18 +135,9 @@ export function DockNav() {
           : location.pathname === item.path
             ? 'active'
             : '',
-      onClick: () => {
-        if (item.path === '/app/inventorypro') {
-          const launchUrl = inventoryProContext?.launch_url;
-          if (launchUrl) {
-            window.open(launchUrl, '_blank', 'noopener,noreferrer');
-          }
-          return;
-        }
-        navigate(item.path);
-      },
+      onClick: () => navigate(item.path),
     }));
-  }, [inventoryProContext?.available, inventoryProContext?.launch_url, location.pathname, navigate, prefs.dockOrder, user]);
+  }, [inventoryProContext?.available, location.pathname, navigate, prefs.dockOrder, user]);
 
   const isVertical = prefs.dockPosition !== 'bottom';
   const wrapperClass = cn(

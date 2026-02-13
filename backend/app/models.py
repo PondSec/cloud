@@ -289,6 +289,9 @@ class AppSettings(db.Model):
     inventory_pro_dock_enabled = db.Column(db.Boolean, nullable=False, default=True)
     inventory_pro_default_role_name = db.Column(db.String(64), nullable=False, default="user")
     inventory_pro_shared_secret_hash = db.Column(db.String(255), nullable=False, default="")
+    # NOTE: We keep a plaintext copy so Cloud can call InventoryPro server-to-server.
+    # The hash is still used to authenticate InventoryPro -> Cloud calls.
+    inventory_pro_shared_secret_plain = db.Column(db.String(512), nullable=False, default="")
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 
     @classmethod
@@ -308,11 +311,14 @@ class AppSettings(db.Model):
         cleaned = secret.strip()
         if not cleaned:
             self.inventory_pro_shared_secret_hash = ""
+            self.inventory_pro_shared_secret_plain = ""
             return
         self.inventory_pro_shared_secret_hash = pwd_hasher.hash(cleaned)
+        self.inventory_pro_shared_secret_plain = cleaned
 
     def clear_inventory_pro_shared_secret(self) -> None:
         self.inventory_pro_shared_secret_hash = ""
+        self.inventory_pro_shared_secret_plain = ""
 
     def verify_inventory_pro_shared_secret(self, secret: str) -> bool:
         candidate = secret.strip()

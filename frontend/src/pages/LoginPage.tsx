@@ -24,8 +24,11 @@ export function LoginPage() {
     onSuccess: async (response) => {
       setAuthSession(response.access_token, response.refresh_token);
       await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+      const params = new URLSearchParams(location.search);
+      const nextParam = params.get('next');
       const redirectPath = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname;
-      navigate(redirectPath ?? '/app/home', { replace: true });
+      const nextPath = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
+      navigate(redirectPath ?? nextPath ?? '/app/home', { replace: true });
       toast.success('Willkommen zurück. Ihr Bereich ist bereit.');
     },
     onError: (error) => toast.error(toApiMessage(error)),
@@ -36,8 +39,11 @@ export function LoginPage() {
     onSuccess: async (response) => {
       setAuthSession(response.access_token, response.refresh_token);
       await queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+      const params = new URLSearchParams(location.search);
+      const nextParam = params.get('next');
       const redirectPath = (location.state as { from?: { pathname?: string } } | undefined)?.from?.pathname;
-      navigate(redirectPath ?? '/app/home', { replace: true });
+      const nextPath = nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : null;
+      navigate(redirectPath ?? nextPath ?? '/app/home', { replace: true });
       toast.success('SSO erfolgreich. Willkommen in Ihrer Cloud.');
     },
     onError: (error) => {

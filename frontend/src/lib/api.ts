@@ -18,6 +18,10 @@ import type {
   OnlyOfficeSession,
   Permission,
   InventoryProContext,
+  InventoryProLaunch,
+  InventoryProRecents,
+  InventoryProSearchResults,
+  InventoryProSummary,
   ResourceQuota,
   ResourceQuotaUsage,
   RestorePoint,
@@ -119,6 +123,27 @@ export const api = {
     async inventoryProContext(): Promise<InventoryProContext> {
       const { data } = await client.get<{ inventory_pro: InventoryProContext }>('/auth/inventorypro/context');
       return data.inventory_pro;
+    },
+    async inventoryProSummary(): Promise<InventoryProSummary> {
+      const { data } = await client.get<InventoryProSummary>('/auth/inventorypro/summary');
+      return data;
+    },
+    async inventoryProRecents(limit = 12): Promise<InventoryProRecents> {
+      const { data } = await client.get<InventoryProRecents>(`/auth/inventorypro/recents?limit=${limit}`);
+      return data;
+    },
+    async inventoryProSearch(query: string, limit = 20): Promise<InventoryProSearchResults> {
+      const params = new URLSearchParams();
+      params.set('q', query);
+      params.set('limit', String(limit));
+      const { data } = await client.get<InventoryProSearchResults>(`/auth/inventorypro/search?${params.toString()}`);
+      return data;
+    },
+    async inventoryProLaunch(nextPath = '/'): Promise<InventoryProLaunch> {
+      const params = new URLSearchParams();
+      params.set('next', nextPath);
+      const { data } = await client.get<InventoryProLaunch>(`/auth/inventorypro/launch?${params.toString()}`);
+      return data;
     },
     async inventoryProExchange(ticket: string): Promise<AuthResponse> {
       const { data } = await client.post<AuthResponse>('/auth/inventorypro/exchange', { ticket });

@@ -32,6 +32,7 @@ export function AppShell() {
     if (location.pathname.startsWith('/app/settings')) return 'Einstellungen';
     if (location.pathname.startsWith('/app/admin')) return 'Verwaltung';
     if (location.pathname.startsWith('/app/monitoring')) return 'System';
+    if (location.pathname.startsWith('/app/inventorypro')) return 'Inventory Pro';
     if (location.pathname.startsWith('/dev')) return 'Studio';
     return 'Bereich';
   })();

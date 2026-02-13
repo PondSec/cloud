@@ -63,6 +63,7 @@ def test_admin_can_save_inventorypro_settings(client, app):
         settings = AppSettings.singleton()
         assert settings.has_inventory_pro_secret is True
         assert settings.verify_inventory_pro_shared_secret("inventory-pro-shared-secret") is True
+        assert settings.inventory_pro_shared_secret_plain == "inventory-pro-shared-secret"
 
 
 def test_inventorypro_sync_creates_user(client, app):
@@ -129,3 +130,56 @@ def test_local_login_is_blocked_when_sso_is_enforced(client, app):
     login = client.post("/auth/login", json={"username": "alice", "password": "alicepass"})
     assert login.status_code == 403
     assert login.get_json()["error"]["code"] == "SSO_ENFORCED"
+
+def test_cloud_can_fetch_inventorypro_summary_and_launch_url(client, app, monkeypatch):
+    _enable_inventory_integration(app)
+    token = _token(client, "alice", "alicepass")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    class _FakeResponse:
+        def __init__(self, payload: bytes):
+            self.status = 200
+            self._payload = payload
+
+        def read(self):
+            return self._payload
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def _fake_urlopen(req, timeout=0):  # type: ignore[no-untyped-def]
+        assert timeout == 20
+        headers_lower = {key.lower(): value for key, value in (req.headers or {}).items()}
+        assert headers_lower.get("x-inventorypro-secret") == "inventory-pro-shared-secret"
+        if req.full_url.startswith("https://inv.example.com/api/integration/cloud/summary"):
+            return _FakeResponse(b'{"counts":{"assets":1,"categories":2,"users":3,"tickets_total":4,"tickets_open":2}}')
+        if req.full_url.startswith("https://inv.example.com/api/integration/cloud/recents"):
+            return _FakeResponse(b'{"items":[{"type":"asset","id":1,"title":"A","subtitle":"C","timestamp":"x","url":"/"}],"count":1}')
+        if req.full_url.startswith("https://inv.example.com/api/integration/cloud/search"):
+            return _FakeResponse(b'{"items":[{"type":"ticket","id":9,"title":"T","subtitle":"open","url":"/tickets"}],"count":1}')
+        if req.full_url.startswith("https://inv.example.com/api/integration/cloud/sso/ticket"):
+            return _FakeResponse(b'{"ticket":"t123","expires_in":120,"user":{"id":1,"username":"alice","cloud_user_id":"1"}}')
+        raise AssertionError(f"unexpected url: {req.full_url}")
+
+    monkeypatch.setattr("app.integration.inventorypro_remote.urllib.request.urlopen", _fake_urlopen)
+
+    summary = client.get("/auth/inventorypro/summary", headers=headers)
+    assert summary.status_code == 200
+    assert summary.get_json()["counts"]["assets"] == 1
+
+    recents = client.get("/auth/inventorypro/recents?limit=5", headers=headers)
+    assert recents.status_code == 200
+    assert recents.get_json()["count"] == 1
+
+    search = client.get("/auth/inventorypro/search?q=foo&limit=7", headers=headers)
+    assert search.status_code == 200
+    assert search.get_json()["count"] == 1
+
+    launch = client.get("/auth/inventorypro/launch?next=/tickets", headers=headers)
+    assert launch.status_code == 200
+    data = launch.get_json()
+    assert data["url"].startswith("https://inv.example.com/integration/cloud/sso/login?")
+    assert "ticket=t123" in data["url"]

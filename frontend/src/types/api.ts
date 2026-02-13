@@ -95,6 +95,62 @@ export interface InventoryProContext {
   available: boolean;
 }
 
+export interface InventoryProSummary {
+  counts: {
+    assets: number;
+    categories: number;
+    users: number;
+    tickets_total: number;
+    tickets_open: number;
+  };
+  recent_assets: Array<{
+    id: number;
+    name: string;
+    category: string | null;
+    created_at: string;
+    url: string;
+  }>;
+  recent_tickets: Array<{
+    id: number;
+    title: string;
+    status: string | null;
+    updated_at: string;
+    url: string;
+  }>;
+  integration?: {
+    enabled: boolean;
+    allowIframeEmbedding: boolean;
+  };
+}
+
+export interface InventoryProRecents {
+  items: Array<{
+    type: string;
+    id: number | string;
+    title: string;
+    subtitle: string;
+    timestamp: string;
+    url: string;
+  }>;
+  count: number;
+}
+
+export interface InventoryProSearchResults {
+  items: Array<{
+    type: string;
+    id: number | string;
+    title: string;
+    subtitle: string;
+    url: string;
+  }>;
+  count: number;
+}
+
+export interface InventoryProLaunch {
+  url: string;
+  expires_in: number;
+}
+
 export type DockPosition = 'bottom' | 'left' | 'right';
 
 export interface UiPreferences {

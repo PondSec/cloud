@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import urllib.parse
 from typing import Any
 
 from flask import Blueprint, current_app, jsonify, request
@@ -12,6 +13,7 @@ from ..common.rate_limit import login_rate_limiter
 from ..common.rbac import current_user
 from ..extensions import db
 from ..integration.service import consume_inventory_pro_sso_ticket, inventory_pro_public_context
+from ..integration.inventorypro_remote import build_inventorypro_sso_payload, inventorypro_request_json
 from ..monitoring.quotas import get_or_create_quota
 from ..models import AppSettings, Role, User, UserUiPreference
 
@@ -303,6 +305,69 @@ def me():
 def inventory_pro_context():
     settings = AppSettings.singleton()
     return jsonify({"inventory_pro": inventory_pro_public_context(settings)})
+
+
+@auth_bp.get("/inventorypro/summary")
+@jwt_required()
+def inventory_pro_summary():
+    settings = AppSettings.singleton()
+    payload = inventorypro_request_json(settings, method="GET", path="/api/integration/cloud/summary")
+    return jsonify(payload)
+
+
+@auth_bp.get("/inventorypro/recents")
+@jwt_required()
+def inventory_pro_recents():
+    settings = AppSettings.singleton()
+    limit_raw = request.args.get("limit", 12)
+    payload = inventorypro_request_json(
+        settings,
+        method="GET",
+        path="/api/integration/cloud/recents",
+        query={"limit": limit_raw},
+    )
+    return jsonify(payload)
+
+
+@auth_bp.get("/inventorypro/search")
+@jwt_required()
+def inventory_pro_search():
+    settings = AppSettings.singleton()
+    query_raw = str(request.args.get("q") or request.args.get("query") or "")
+    limit_raw = request.args.get("limit", 20)
+    payload = inventorypro_request_json(
+        settings,
+        method="GET",
+        path="/api/integration/cloud/search",
+        query={"q": query_raw, "limit": limit_raw},
+    )
+    return jsonify(payload)
+
+
+@auth_bp.get("/inventorypro/launch")
+@jwt_required()
+def inventory_pro_launch():
+    user = current_user(required=True)
+    assert user is not None
+
+    settings = AppSettings.singleton()
+    next_path = str(request.args.get("next") or "/").strip() or "/"
+    if not next_path.startswith("/") or next_path.startswith("//"):
+        next_path = "/"
+
+    ticket_payload = inventorypro_request_json(
+        settings,
+        method="POST",
+        path="/api/integration/cloud/sso/ticket",
+        body=build_inventorypro_sso_payload(user),
+    )
+    ticket = str(ticket_payload.get("ticket") or "").strip()
+    if not ticket:
+        raise APIError(502, "INVENTORYPRO_SSO_FAILED", "InventoryPro did not return an SSO ticket.")
+
+    base_url = (settings.inventory_pro_base_url or "").strip().rstrip("/")
+    launch_url = f"{base_url}/integration/cloud/sso/login?{urllib.parse.urlencode({'ticket': ticket, 'next': next_path})}"
+    return jsonify({"url": launch_url, "expires_in": ticket_payload.get("expires_in")})
 
 
 @auth_bp.post("/inventorypro/exchange")

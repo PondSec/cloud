@@ -10,6 +10,7 @@ import { AdminPage } from '@/pages/AdminPage';
 import { FilesPage } from '@/pages/FilesPage';
 import { HomePage } from '@/pages/HomePage';
 import { IdePage } from '@/pages/IdePage';
+import { InventoryProPage } from '@/pages/InventoryProPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { MediaPage } from '@/pages/MediaPage';
 import { MonitoringPage } from '@/pages/MonitoringPage';
@@ -95,6 +96,7 @@ export default function App() {
               </RequireAdmin>
             }
           />
+          <Route path="inventorypro" element={<InventoryProPage />} />
         </Route>
       </Route>
 

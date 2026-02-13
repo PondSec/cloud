@@ -1,4 +1,5 @@
 import { ChevronRight, Folder, MoveRight, Pencil, Trash2 } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import GradualBlur from '@/components/reactbits/GradualBlur';
 import type { FolderTreeNode } from '@/types/api';
@@ -11,6 +12,7 @@ interface FolderTreeProps {
   onRenameFolder?: (node: FolderTreeNode) => void;
   onMoveFolder?: (node: FolderTreeNode) => void;
   onDeleteFolder?: (node: FolderTreeNode) => void;
+  extraRootItems?: ReactNode;
 }
 
 function TreeItem({
@@ -122,6 +124,7 @@ export function FolderTree({
   onRenameFolder,
   onMoveFolder,
   onDeleteFolder,
+  extraRootItems,
 }: FolderTreeProps) {
   return (
     <section className="relative flex h-full flex-col overflow-hidden">
@@ -143,6 +146,7 @@ export function FolderTree({
               Start
             </button>
           </li>
+          {extraRootItems}
           {tree.map((node) => (
             <TreeItem
               key={node.id}

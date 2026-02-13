@@ -25,11 +25,7 @@ const settingsSchema = z.object({
         .default({}),
     previewPort: z.number().int().nonnegative().optional(),
     languageServers: z
-        .object({
-        typescript: z.boolean(),
-        python: z.boolean(),
-        c: z.boolean(),
-    })
+        .record(z.boolean())
         .default({ typescript: true, python: true, c: true }),
     allowEgress: z.boolean().default(config.defaultAllowEgress),
 });

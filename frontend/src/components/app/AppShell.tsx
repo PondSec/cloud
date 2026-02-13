@@ -68,34 +68,34 @@ export function AppShell() {
         if (tag === 'input' || tag === 'textarea' || target.isContentEditable) return;
       }
 
-      const key = event.key.toLowerCase();
+      const code = event.code;
 
       const altOnly = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
       const ctrlOnly = event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
       const cmdAlt = event.metaKey && event.altKey && !event.ctrlKey && !event.shiftKey;
 
       if (altOnly || cmdAlt) {
-        if (key === 'h') {
+        if (code === 'KeyH') {
           event.preventDefault();
           runShortcut('home');
           return;
         }
-        if (key === 'f') {
+        if (code === 'KeyF') {
           event.preventDefault();
           runShortcut('files');
           return;
         }
-        if (key === 's') {
+        if (code === 'KeyS') {
           event.preventDefault();
           runShortcut('search');
           return;
         }
-        if (key === 'm') {
+        if (code === 'KeyM') {
           event.preventDefault();
           runShortcut('media');
           return;
         }
-        if (event.key === ',') {
+        if (code === 'Comma' || event.key === ',') {
           event.preventDefault();
           runShortcut('settings');
           return;
@@ -103,13 +103,13 @@ export function AppShell() {
       }
 
       // Mac/Keyboard fallback: Ctrl+1..5 (works even when Option combos are intercepted).
-      if (ctrlOnly && ['1', '2', '3', '4', '5'].includes(key)) {
+      if (ctrlOnly && ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5'].includes(code)) {
         event.preventDefault();
-        if (key === '1') runShortcut('home');
-        if (key === '2') runShortcut('files');
-        if (key === '3') runShortcut('search');
-        if (key === '4') runShortcut('media');
-        if (key === '5') runShortcut('settings');
+        if (code === 'Digit1') runShortcut('home');
+        if (code === 'Digit2') runShortcut('files');
+        if (code === 'Digit3') runShortcut('search');
+        if (code === 'Digit4') runShortcut('media');
+        if (code === 'Digit5') runShortcut('settings');
       }
     };
 

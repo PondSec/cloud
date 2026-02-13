@@ -23,11 +23,7 @@ export interface WorkspaceSettings {
     preview?: string;
   };
   previewPort?: number;
-  languageServers: {
-    typescript: boolean;
-    python: boolean;
-    c: boolean;
-  };
+  languageServers: Record<string, boolean>;
   allowEgress: boolean;
 }
 

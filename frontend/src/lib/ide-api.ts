@@ -55,14 +55,28 @@ export function ideApiBaseUrl(): string {
 }
 
 export function idePreviewBaseUrl(): string {
-  const envValue = String(import.meta.env.VITE_IDE_API_BASE_URL || '').trim();
-  if (envValue) return stripTrailingSlash(envValue);
+  // Optional override: allow hosting previews on a separate origin (recommended for isolation).
+  const previewEnvValue = String(import.meta.env.VITE_IDE_PREVIEW_BASE_URL || '').trim();
+  if (previewEnvValue) return stripTrailingSlash(previewEnvValue);
+
+  const ideEnvValue = String(import.meta.env.VITE_IDE_API_BASE_URL || '').trim();
+  if (ideEnvValue) return stripTrailingSlash(ideEnvValue);
 
   if (typeof window !== 'undefined') {
-    // Keep preview on a separate origin from the app to avoid preview code affecting the IDE UI.
     const protocol = window.location.protocol || 'http:';
     const hostname = window.location.hostname || 'localhost';
-    return stripTrailingSlash(`${protocol}//${hostname}:18080`);
+    const bracketedHost = hostname.includes(':') ? `[${hostname}]` : hostname;
+    const isIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+    const isLocalHost = hostname === 'localhost' || hostname.endsWith('.localhost');
+
+    // Prefer a separate origin when we're on localhost / an IP (usually local/LAN dev where :18080 is reachable).
+    if (isLocalHost || isIpv4) {
+      return stripTrailingSlash(`${protocol}//${bracketedHost}:18080`);
+    }
+
+    // Default: use the same-origin IDE proxy route (see vite.config.ts). This works behind reverse proxies
+    // where exposing a separate :18080 port isn't practical.
+    return stripTrailingSlash(`${window.location.origin}/ide`);
   }
 
   return 'http://localhost:18080';

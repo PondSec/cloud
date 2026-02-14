@@ -117,7 +117,7 @@ export function PreviewPanel({
       } catch {
         if (!cancelled) {
           setHint(
-            'Vorschau-Service nicht erreichbar. Prüfen Sie, ob die IDE-API auf Port 18080 erreichbar ist (ggf. Firewall) und starten Sie die Vorschau mit Play.',
+            `Vorschau-Service nicht erreichbar. Prüfen Sie, ob die IDE-API erreichbar ist (${idePreviewBaseUrl()}) (ggf. Reverse Proxy/Firewall) und starten Sie die Vorschau mit Play.`,
           );
         }
       }

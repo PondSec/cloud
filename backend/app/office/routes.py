@@ -91,6 +91,14 @@ def _office_config_token(config: dict[str, Any]) -> str | None:
 def _public_backend_base() -> str:
     return str(current_app.config["ONLYOFFICE_PUBLIC_BACKEND_URL"]).rstrip("/")
 
+def _public_backend_api_base() -> str:
+    base = _public_backend_base()
+    if not base:
+        return "/api"
+    if base.endswith("/api"):
+        return base
+    return f"{base}/api"
+
 
 def _document_server_base() -> str:
     return str(current_app.config["ONLYOFFICE_DOCUMENT_SERVER_URL"]).rstrip("/")
@@ -200,7 +208,7 @@ def create_session():
 
     file_token = _issue_signed_token("file", node.id)
     callback_token = _issue_signed_token("callback", node.id)
-    backend_base = _public_backend_base()
+    backend_base = _public_backend_api_base()
     file_url = f"{backend_base}/office/file/{node.id}?token={quote(file_token)}"
     callback_url = f"{backend_base}/office/callback/{node.id}?token={quote(callback_token)}"
 

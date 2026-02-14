@@ -59,6 +59,9 @@ def create_app(config_override: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)
     app.register_blueprint(office_bp)
+    # Register Office routes under /api as well. This makes OnlyOffice callbacks and downloads
+    # work reliably behind reverse proxies that only forward /api/* to the backend.
+    app.register_blueprint(office_bp, url_prefix="/api", name="api_office")
     app.register_blueprint(shares_bp)
     app.register_blueprint(public_shares_bp)
     app.register_blueprint(admin_bp)

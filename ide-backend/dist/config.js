@@ -40,5 +40,15 @@ export const config = {
     loginRateLimitWindowMs: envInt('LOGIN_RATE_LIMIT_WINDOW_MS', 15 * 60 * 1000),
     runnerStartRateLimitMax: envInt('RUNNER_START_RATE_LIMIT_MAX', 30),
     runnerStartRateLimitWindowMs: envInt('RUNNER_START_RATE_LIMIT_WINDOW_MS', 60 * 1000),
+    runnerSharedSecret: env('RUNNER_SHARED_SECRET', 'dev-runner-shared-secret-change-me'),
 };
 export const isProd = config.nodeEnv === 'production';
+if (isProd && config.jwtSecret === 'dev-jwt-secret-change-me') {
+    throw new Error('JWT_SECRET must be set to a strong value in production.');
+}
+if (isProd && config.encryptionKey === 'dev-encryption-key-change-me-32bytes') {
+    throw new Error('APP_ENCRYPTION_KEY must be set to a strong value in production.');
+}
+if (isProd && config.runnerSharedSecret === 'dev-runner-shared-secret-change-me') {
+    throw new Error('RUNNER_SHARED_SECRET must be set to a strong value in production.');
+}

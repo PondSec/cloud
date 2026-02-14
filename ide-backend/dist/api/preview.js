@@ -2,6 +2,7 @@ import { URL } from 'node:url';
 import { Router } from 'express';
 import { verifySessionToken } from '../auth/jwt.js';
 import { requireWorkspace } from '../workspace/service.js';
+import { HttpError } from '../utils/http-error.js';
 import { config } from '../config.js';
 export const previewRouter = Router();
 async function forwardPreview(req, res, pathSuffix) {
@@ -13,7 +14,11 @@ async function forwardPreview(req, res, pathSuffix) {
         }
         const session = verifySessionToken(token);
         requireWorkspace(req.params.workspaceId, session.sub);
-        const target = new URL(`/preview/${req.params.workspaceId}/${req.params.port}/${pathSuffix}`, config.runnerUrl);
+        const port = Number.parseInt(req.params.port, 10);
+        if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+            throw new HttpError(400, 'Invalid preview port');
+        }
+        const target = new URL(`/preview/${req.params.workspaceId}/${port}/${pathSuffix}`, config.runnerUrl);
         for (const [key, value] of Object.entries(req.query)) {
             if (key === 'token')
                 continue;
@@ -23,11 +28,8 @@ async function forwardPreview(req, res, pathSuffix) {
         }
         const headers = {
             accept: req.headers.accept ?? '*/*',
+            'x-runner-secret': config.runnerSharedSecret,
         };
-        const hostHeader = req.headers.host;
-        if (typeof hostHeader === 'string') {
-            headers.host = hostHeader;
-        }
         const userAgent = req.headers['user-agent'];
         if (typeof userAgent === 'string') {
             headers['user-agent'] = userAgent;

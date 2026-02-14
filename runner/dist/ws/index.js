@@ -1,12 +1,30 @@
+import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { URL } from 'node:url';
 import * as pty from 'node-pty';
 import { WebSocketServer } from 'ws';
 import { config } from '../config.js';
 import { startContainer, workspaceContainerName } from '../services/docker.js';
+function isRunnerAuthorized(req) {
+    const provided = req.headers['x-runner-secret'];
+    if (typeof provided !== 'string') {
+        return false;
+    }
+    const expected = config.runnerSharedSecret;
+    const a = Buffer.from(provided);
+    const b = Buffer.from(expected);
+    if (a.length != b.length) {
+        return false;
+    }
+    return crypto.timingSafeEqual(a, b);
+}
 export function registerRunnerWs(server) {
     const wss = new WebSocketServer({ noServer: true });
     server.on('upgrade', (req, socket, head) => {
+        if (!isRunnerAuthorized(req)) {
+            socket.destroy();
+            return;
+        }
         const host = req.headers.host ?? 'localhost';
         const url = new URL(req.url ?? '/', `http://${host}`);
         if (url.pathname === '/ws/pty') {

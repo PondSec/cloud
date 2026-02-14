@@ -1,0 +1,41 @@
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  security-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Block committed high-risk secrets patterns
+        run: |
+          set -euo pipefail
+          ! rg -n "super-secret|dev-jwt-secret-change-me|dev-runner-shared-secret-change-me" docker-compose.yml infra/docker-compose.yml ide-backend/src/config.ts runner/src/config.ts
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install workspace deps
+        run: npm ci
+
+      - name: IDE backend tests
+        run: npm test -w ide-backend
+
+      - name: Runner tests
+        run: npm test -w runner
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Backend tests
+        run: |
+          python -m pip install -r backend/requirements.txt
+          pytest -q backend/tests

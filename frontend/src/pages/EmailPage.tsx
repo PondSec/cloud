@@ -24,21 +24,39 @@ function sanitizeEmailHtmlFragment(html: string): string {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    doc.querySelectorAll('script, style, link, iframe, object, embed').forEach((el) => el.remove());
+    doc.querySelectorAll('script, style, link, iframe, object, embed, form, base, meta').forEach((el) => el.remove());
+
+    const safeHref = (value: string): string | null => {
+      const normalized = (value || '').trim();
+      if (!normalized) return null;
+      if (normalized.startsWith('#')) return normalized;
+      if (/^(https?:|mailto:)/i.test(normalized)) return normalized;
+      return null;
+    };
 
     doc.querySelectorAll('*').forEach((el) => {
       Array.from(el.attributes).forEach((attr) => {
         const name = attr.name.toLowerCase();
-        const value = (attr.value || '').trim().toLowerCase();
-        if (name.startsWith('on')) el.removeAttribute(attr.name);
-        if (name === 'srcdoc') el.removeAttribute(attr.name);
-        if (name === 'href' && value.startsWith('javascript:')) el.removeAttribute(attr.name);
+        const value = (attr.value || '').trim();
+        if (name.startsWith('on') || name === 'srcdoc' || name === 'action') {
+          el.removeAttribute(attr.name);
+          return;
+        }
+        if (name === 'href' || name === 'xlink:href') {
+          const cleaned = safeHref(value);
+          if (!cleaned) {
+            el.removeAttribute(attr.name);
+          } else {
+            el.setAttribute(attr.name, cleaned);
+          }
+        }
       });
     });
 
     doc.querySelectorAll('img').forEach((img) => {
       img.setAttribute('data-blocked-src', img.getAttribute('src') || '');
       img.removeAttribute('src');
+      img.removeAttribute('srcset');
       img.setAttribute('alt', img.getAttribute('alt') || '[Bild blockiert]');
     });
 

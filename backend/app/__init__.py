@@ -28,6 +28,18 @@ from .shares import public_shares_bp, shares_bp
 load_dotenv()
 
 
+def _apply_security_headers(app: Flask) -> None:
+    @app.after_request
+    def set_headers(response):  # type: ignore[no-untyped-def]
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "no-referrer")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        response.headers.setdefault("Content-Security-Policy", "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'")
+        return response
+
+
 def _register_jwt_handlers(jwt_manager: JWTManager) -> None:
     @jwt_manager.unauthorized_loader
     def unauthorized(reason: str):  # type: ignore[no-untyped-def]
@@ -48,12 +60,16 @@ def create_app(config_override: dict[str, Any] | None = None) -> Flask:
     if config_override:
         app.config.update(config_override)
 
+    if app.config.get("ENV") == "production" and app.config["JWT_SECRET_KEY"] == "dev-jwt-secret-key-change-me-at-least-32-bytes":
+        raise RuntimeError("JWT_SECRET_KEY must be set to a strong value in production.")
+
     Path(app.config["STORAGE_ROOT"]).mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     _register_jwt_handlers(jwt)
+    _apply_security_headers(app)
     cors.init_app(app, resources={r"/*": {"origins": app.config["FRONTEND_ORIGINS"]}})
 
     app.register_blueprint(auth_bp)

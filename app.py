@@ -435,7 +435,8 @@ def start_frontend(port: int, backend_port: int, public_host: str) -> subprocess
     # Default to same-origin API path so external access via a reverse proxy works
     # without leaking LAN-only IPs into the browser bundle.
     env.setdefault("VITE_API_BASE_URL", "/api")
-    env.setdefault("VITE_IDE_API_BASE_URL", f"http://{public_host}:18080")
+    # Keep IDE base URL dynamic (frontend defaults to same-origin `/ide` in production and
+    # chooses `:18080` automatically on localhost/LAN in dev). Avoid baking LAN IPs into the bundle.
     env["FORCE_COLOR"] = "1"
     npm = npm_command()
     return subprocess.Popen(

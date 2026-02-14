@@ -59,10 +59,9 @@ export function idePreviewBaseUrl(): string {
   const previewEnvValue = String(import.meta.env.VITE_IDE_PREVIEW_BASE_URL || '').trim();
   if (previewEnvValue) return stripTrailingSlash(previewEnvValue);
 
-  const ideEnvValue = String(import.meta.env.VITE_IDE_API_BASE_URL || '').trim();
-  if (ideEnvValue) return stripTrailingSlash(ideEnvValue);
-
-  if (typeof window !== 'undefined') {
+  // In dev, prefer runtime-based selection so reverse-proxied access (e.g. https://cloud.example.com)
+  // doesn't get broken by env vars that point to LAN-only IPs.
+  if (typeof window !== 'undefined' && import.meta.env.DEV) {
     const protocol = window.location.protocol || 'http:';
     const hostname = window.location.hostname || 'localhost';
     const bracketedHost = hostname.includes(':') ? `[${hostname}]` : hostname;
@@ -74,6 +73,14 @@ export function idePreviewBaseUrl(): string {
       return stripTrailingSlash(`${protocol}//${bracketedHost}:18080`);
     }
 
+    // Behind a reverse proxy, `:18080` is usually not exposed publicly. Use the same-origin `/ide` route.
+    return stripTrailingSlash(`${window.location.origin}/ide`);
+  }
+
+  const ideEnvValue = String(import.meta.env.VITE_IDE_API_BASE_URL || '').trim();
+  if (ideEnvValue) return stripTrailingSlash(ideEnvValue);
+
+  if (typeof window !== 'undefined') {
     // Default: use the same-origin IDE proxy route (see vite.config.ts). This works behind reverse proxies
     // where exposing a separate :18080 port isn't practical.
     return stripTrailingSlash(`${window.location.origin}/ide`);

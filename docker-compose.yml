@@ -21,7 +21,7 @@ services:
       RUNNER_WS_URL: ws://runner:8081
       WORKSPACE_IMAGE: cloudide-workspace:latest
       WORKSPACE_VOLUME: cloudide-workspaces
-      CORS_ORIGIN: http://localhost:5173,http://127.0.0.1:5173
+      CORS_ORIGIN: http://localhost:5173,http://127.0.0.1:5173,https://cloud.pondsec.com
     volumes:
       - cloudide-db:/data
       - cloudide-workspaces:/workspaces

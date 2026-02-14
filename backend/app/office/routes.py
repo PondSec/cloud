@@ -7,7 +7,7 @@ import urllib.request
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlencode, urlparse, urlsplit, urlunsplit
 
 import jwt
 from flask import Blueprint, current_app, jsonify, request, send_file
@@ -105,6 +105,100 @@ def _document_server_base() -> str:
 
 def _document_server_public_base() -> str:
     return str(current_app.config.get("ONLYOFFICE_PUBLIC_DOCUMENT_SERVER_URL") or _document_server_base()).rstrip("/")
+
+def _document_server_public_path_prefix() -> str:
+    public_base = _document_server_public_base()
+    if not public_base:
+        return ""
+    if public_base.startswith("/"):
+        return public_base.rstrip("/")
+    try:
+        return urlparse(public_base).path.rstrip("/")
+    except ValueError:
+        return ""
+
+
+def _redact_url(value: str) -> str:
+    # Avoid leaking tokens/secrets in logs (OnlyOffice URLs may contain bearer tokens).
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return value
+
+    if not parts.query:
+        return value
+
+    redacted: list[tuple[str, str]] = []
+    for key, val in parse_qsl(parts.query, keep_blank_values=True):
+        if key.lower() in {"token", "jwt", "authorization", "auth"}:
+            redacted.append((key, "REDACTED"))
+        else:
+            redacted.append((key, val))
+
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(redacted), parts.fragment))
+
+
+def _join_url(base: str, path: str, query: str = "") -> str:
+    base = base.rstrip("/")
+    if not path.startswith("/"):
+        path = f"/{path}"
+    url = f"{base}{path}"
+    if query:
+        url = f"{url}?{query}"
+    return url
+
+
+def _is_http_url(value: str) -> bool:
+    try:
+        parsed = urlparse(value)
+    except ValueError:
+        return False
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def _onlyoffice_download_url_candidates(source_url: str) -> list[str]:
+    raw = (source_url or "").strip()
+    if not raw:
+        return []
+
+    candidates: list[str] = []
+    internal_base = _document_server_base()
+    public_base = _document_server_public_base()
+
+    parsed = urlparse(raw)
+    path = parsed.path or "/"
+    query = parsed.query
+
+    prefix = _document_server_public_path_prefix()
+    stripped_path = path
+    if prefix:
+        if stripped_path == prefix:
+            stripped_path = "/"
+        elif stripped_path.startswith(prefix + "/"):
+            stripped_path = stripped_path[len(prefix) :] or "/"
+
+    # Prefer fetching from the internal Document Server base. This avoids TLS / public DNS
+    # issues in deployments where the backend container can't reach the public domain.
+    if internal_base and not internal_base.startswith("/"):
+        candidates.append(_join_url(internal_base, stripped_path, query))
+        if stripped_path != path:
+            candidates.append(_join_url(internal_base, path, query))
+        elif not _is_http_url(raw):
+            candidates.append(_join_url(internal_base, raw, ""))
+
+    if _is_http_url(raw):
+        candidates.append(raw)
+    elif public_base and not public_base.startswith("/"):
+        candidates.append(_join_url(public_base, path, query))
+
+    # De-dup while preserving order.
+    seen: set[str] = set()
+    unique: list[str] = []
+    for url in candidates:
+        if url not in seen:
+            unique.append(url)
+            seen.add(url)
+    return unique
 
 
 def _document_server_script_url() -> str:
@@ -286,12 +380,36 @@ def office_callback(file_id: int):
         current_app.logger.warning("OnlyOffice callback missing download URL for file_id=%s", file_id)
         return jsonify({"error": 1})
 
-    try:
-        with urllib.request.urlopen(source_url, timeout=45) as response:
-            data = response.read()
-    except (urllib.error.URLError, TimeoutError, OSError):
-        current_app.logger.exception("OnlyOffice callback download failed for file_id=%s", file_id)
-        return jsonify({"error": 1})
+    candidates = _onlyoffice_download_url_candidates(source_url)
+    data: bytes | None = None
+    for idx, candidate_url in enumerate(candidates):
+        try:
+            request_obj = urllib.request.Request(
+                candidate_url,
+                method="GET",
+                headers={"User-Agent": "PondSecCloud/OnlyOffice"},
+            )
+            with urllib.request.urlopen(request_obj, timeout=45) as response:
+                if response.status < 200 or response.status >= 300:
+                    raise urllib.error.HTTPError(
+                        candidate_url,
+                        response.status,
+                        f"Unexpected status {response.status}",
+                        response.headers,
+                        fp=None,
+                    )
+                data = response.read()
+            if data:
+                break
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError, ValueError):
+            if idx == len(candidates) - 1:
+                current_app.logger.exception(
+                    "OnlyOffice callback download failed for file_id=%s url=%s (candidates=%s)",
+                    file_id,
+                    _redact_url(source_url),
+                    [_redact_url(url) for url in candidates],
+                )
+            continue
 
     if not data:
         current_app.logger.warning("OnlyOffice callback returned empty payload for file_id=%s", file_id)

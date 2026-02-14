@@ -75,9 +75,12 @@ def create_app(config_override: dict[str, Any] | None = None) -> Flask:
     app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)
     app.register_blueprint(office_bp)
-    # Register Office routes under /api as well. This makes OnlyOffice callbacks and downloads
+    # Register Office routes under /api/office as well. This makes OnlyOffice callbacks and downloads
     # work reliably behind reverse proxies that only forward /api/* to the backend.
-    app.register_blueprint(office_bp, url_prefix="/api", name="api_office")
+    app.register_blueprint(office_bp, url_prefix="/api/office", name="api_office")
+    # Backward-compatible legacy alias (pre-fix) that exposed /api/{session,file,callback,supported}.
+    # Keep temporarily to avoid breaking existing deployments; new configs should use /api/office/*.
+    app.register_blueprint(office_bp, url_prefix="/api", name="api_office_legacy")
     app.register_blueprint(shares_bp)
     app.register_blueprint(public_shares_bp)
     app.register_blueprint(admin_bp)

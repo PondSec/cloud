@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "updated_at": "2026-02-14",
+  "flags": {
+    "auth.oidc": false,
+    "auth.saml": false,
+    "auth.mfa.totp": false,
+    "auth.mfa.webauthn": false,
+    "auth.mfa.recovery_codes": false,
+    "auth.elevated_admin": false,
+
+    "audit.hash_chain": false,
+    "audit.export": false,
+    "audit.verify_ui": false,
+
+    "storage.s3": false,
+    "files.versioning": false,
+    "files.restore_ui": false,
+
+    "backups.pitr": false,
+    "backups.immutable_worm": false,
+    "dr.runbook_ui": false,
+
+    "sharing.advanced_links": false,
+    "workspaces.teams": false,
+    "comments.annotations": false,
+    "presence.realtime": false,
+
+    "sync.delta_api": false,
+    "sync.desktop_client": false,
+    "sync.mobile_chunk_upload": false,
+    "sync.offline_cache": false,
+
+    "automation.scheduler": false,
+    "automation.event_bus": false,
+    "automation.webhooks": false,
+    "automation.rules_engine": false,
+
+    "api.public_v1": false,
+    "integrations.github": false,
+    "integrations.slack": false,
+    "integrations.ldap": false,
+
+    "security.malware_scan": false,
+    "security.ssrf_guard": false,
+    "security.preview_sanitization": false,
+    "security.csp_nonce": false,
+    "security.secrets_manager": false,
+    "security.at_rest_encryption_hooks": false,
+
+    "data.tags": false,
+    "data.metadata_extraction": false,
+    "data.duplicate_detection": false,
+    "data.quotas_enforcement": false,
+
+    "productivity.wiki": false,
+    "productivity.snippets": false,
+    "productivity.web_clips": false,
+    "productivity.tasks_kanban": false,
+
+    "communication.notifications": false,
+    "communication.activity_feed": false,
+    "communication.chat_or_bridge": false,
+
+    "deploy.one_click": false,
+    "deploy.custom_domains": false,
+    "deploy.acme_tls": false
+  }
+}
+

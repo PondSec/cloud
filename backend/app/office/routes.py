@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import mimetypes
+import os
 import urllib.error
 import urllib.request
 from datetime import timedelta
@@ -88,8 +89,84 @@ def _office_config_token(config: dict[str, Any]) -> str | None:
     return jwt.encode(config, secret, algorithm="HS256")
 
 
+def _first_header_value(value: str | None) -> str:
+    if not value:
+        return ""
+    return value.split(",", 1)[0].strip()
+
+
+def _looks_like_loopback_url(value: str) -> bool:
+    raw = (value or "").strip()
+    if not raw or raw.startswith("/"):
+        return False
+    try:
+        parsed = urlparse(raw)
+    except ValueError:
+        return False
+    host = (parsed.hostname or "").strip().lower()
+    return host in {"127.0.0.1", "localhost", "::1", "0.0.0.0"}
+
+
+def _request_public_origin() -> str:
+    # Prefer proxy-provided headers because OnlyOffice runs server-side and must
+    # reach the backend via a routable address (not 127.0.0.1 inside its container).
+    # Note: We intentionally keep parsing minimal; deployments with complex proxy
+    # setups should set ONLYOFFICE_PUBLIC_BACKEND_URL explicitly.
+    forwarded = _first_header_value(request.headers.get("Forwarded"))
+    proto = ""
+    host = ""
+    if forwarded:
+        for part in forwarded.split(";"):
+            if "=" not in part:
+                continue
+            key, val = part.split("=", 1)
+            key = key.strip().lower()
+            val = val.strip().strip('"')
+            if key == "proto" and not proto:
+                proto = val
+            elif key == "host" and not host:
+                host = val
+
+    if not proto:
+        proto = _first_header_value(request.headers.get("X-Forwarded-Proto")) or (request.scheme or "")
+    if not host:
+        host = _first_header_value(request.headers.get("X-Forwarded-Host")) or (request.host or "")
+
+    port = _first_header_value(request.headers.get("X-Forwarded-Port"))
+    if port and host and ":" not in host:
+        if (proto == "http" and port != "80") or (proto == "https" and port != "443"):
+            host = f"{host}:{port}"
+
+    if not proto or not host:
+        return ""
+    return f"{proto}://{host}".rstrip("/")
+
+
 def _public_backend_base() -> str:
-    return str(current_app.config["ONLYOFFICE_PUBLIC_BACKEND_URL"]).rstrip("/")
+    configured = str(current_app.config.get("ONLYOFFICE_PUBLIC_BACKEND_URL") or "").strip().rstrip("/")
+
+    derived = _request_public_origin()
+    if derived:
+        # Common production pitfall: (mis)config points to 127.0.0.1, but the OnlyOffice
+        # Document Server runs in Docker and can't reach loopback. Prefer the externally
+        # reachable origin when we can infer it from the current request.
+        if _looks_like_loopback_url(configured) and not _looks_like_loopback_url(derived):
+            current_app.logger.info(
+                "OnlyOffice: overriding loopback ONLYOFFICE_PUBLIC_BACKEND_URL=%s with request origin=%s",
+                configured,
+                derived,
+            )
+            return derived
+        if not configured:
+            current_app.logger.info("OnlyOffice: using request origin=%s as backend base URL (ONLYOFFICE_PUBLIC_BACKEND_URL unset)", derived)
+            return derived
+
+    # If explicitly set, respect it verbatim (unless it was an unusable loopback above).
+    env_value = (os.environ.get("ONLYOFFICE_PUBLIC_BACKEND_URL") or "").strip()
+    if env_value:
+        return configured
+
+    return configured
 
 def _public_backend_api_base() -> str:
     base = _public_backend_base()

@@ -186,7 +186,7 @@ def _seq_search_all(client: imaplib.IMAP4) -> list[bytes]:
 
 def _parse_seq_from_meta(fetch_header: bytes) -> str | None:
     stripped = fetch_header.strip()
-    match = re.match(rb"^(\\d+)\\s", stripped)
+    match = re.match(rb"^(\d+)\s", stripped)
     if not match:
         return None
     try:
@@ -210,7 +210,7 @@ def _parse_mailbox_list_response(data: Any) -> list[str]:
             if parsed:
                 name = (parsed.group("name") or "").strip()
             else:
-                match = re.search(r'\"([^\"]+)\"\\s*$', line)
+                match = re.search(r'"([^"]+)"\s*$', line)
                 name = match.group(1) if match else line
             name = name.strip()
             if name.startswith('"') and name.endswith('"') and len(name) >= 2:
@@ -259,8 +259,8 @@ def _parse_status_response(data: Any) -> tuple[int | None, int | None]:
     if not first:
         return None, None
     line = first.decode("utf-8", errors="replace") if isinstance(first, (bytes, bytearray)) else str(first)
-    messages_match = re.search(r"\\bMESSAGES\\s+(\\d+)\\b", line, flags=re.IGNORECASE)
-    unseen_match = re.search(r"\\bUNSEEN\\s+(\\d+)\\b", line, flags=re.IGNORECASE)
+    messages_match = re.search(r"\bMESSAGES\s+(\d+)\b", line, flags=re.IGNORECASE)
+    unseen_match = re.search(r"\bUNSEEN\s+(\d+)\b", line, flags=re.IGNORECASE)
     messages = int(messages_match.group(1)) if messages_match else None
     unseen = int(unseen_match.group(1)) if unseen_match else None
     return messages, unseen
@@ -310,9 +310,9 @@ class MailMessageSummary:
 
 def _parse_flags_and_meta(fetch_header: bytes) -> tuple[str | None, bool, int | None]:
     text = fetch_header.decode("utf-8", errors="replace")
-    uid_match = re.search(r"\\bUID\\s+(\\d+)\\b", text, flags=re.IGNORECASE)
-    flags_match = re.search(r"\\bFLAGS\\s+\\(([^)]*)\\)", text, flags=re.IGNORECASE)
-    size_match = re.search(r"\\bRFC822\\.SIZE\\s+(\\d+)\\b", text, flags=re.IGNORECASE)
+    uid_match = re.search(r"\bUID\s+(\d+)\b", text, flags=re.IGNORECASE)
+    flags_match = re.search(r"\bFLAGS\s+\(([^)]*)\)", text, flags=re.IGNORECASE)
+    size_match = re.search(r"\bRFC822\.SIZE\s+(\d+)\b", text, flags=re.IGNORECASE)
     uid = uid_match.group(1) if uid_match else None
     flags_text = flags_match.group(1) if flags_match else ""
     flags = set(flags_text.split())

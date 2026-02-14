@@ -13,11 +13,29 @@ export function formatBytes(value: number): string {
   return `${size.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
-export function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
+export function formatDate(value: string | null | undefined): string {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+
+  // Some backends return non-ISO timestamps like `YYYY-MM-DD HH:mm:ss` which
+  // can break in Safari/WebKit (Invalid Date -> RangeError in Intl formatter).
+  const candidates = [raw, raw.replace(' ', 'T')];
+  for (const candidate of candidates) {
+    const time = Date.parse(candidate);
+    if (Number.isNaN(time)) continue;
+    const date = new Date(time);
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      }).format(date);
+    } catch {
+      // Fall through and try next candidate.
+    }
+  }
+
+  // Last resort: show the raw value instead of crashing the whole UI.
+  return raw;
 }
 
 const ONLYOFFICE_EXTENSIONS = new Set([

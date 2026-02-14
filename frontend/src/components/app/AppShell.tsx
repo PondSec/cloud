@@ -2,6 +2,7 @@ import { Keyboard } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DockNav } from '@/components/app/DockNav';
 import GlassSurface from '@/components/reactbits/GlassSurface';
 import LightPillar from '@/components/reactbits/LightPillar';
@@ -209,7 +210,9 @@ export function AppShell() {
                 </div>
               </div>
             </div>
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </GlassSurface>
       </main>

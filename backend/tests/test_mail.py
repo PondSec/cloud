@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.mail.service import _parse_flags_and_meta, _parse_seq_from_meta, _parse_status_response
+
 
 def test_mail_account_create_list_context_delete(client):
     login = client.post("/auth/login", json={"username": "alice", "password": "alicepass"})
@@ -55,3 +57,21 @@ def test_mail_account_create_list_context_delete(client):
     assert ctx_after.get_json()["mail"]["available"] is False
     assert ctx_after.get_json()["mail"]["accounts_count"] == 0
 
+
+def test_mail_parse_status_response():
+    messages, unseen = _parse_status_response([b'"INBOX" (MESSAGES 7674 UNSEEN 2)'])
+    assert messages == 7674
+    assert unseen == 2
+
+
+def test_mail_parse_flags_and_meta():
+    meta = b'1 (UID 8256 RFC822.SIZE 12345 FLAGS (\\Seen) BODY[HEADER.FIELDS (SUBJECT FROM DATE)] {342}'
+    uid, seen, size = _parse_flags_and_meta(meta)
+    assert uid == "8256"
+    assert seen is True
+    assert size == 12345
+
+
+def test_mail_parse_seq_from_meta():
+    seq = _parse_seq_from_meta(b"123 (UID 456 FLAGS (\\\\Seen))")
+    assert seq == "123"

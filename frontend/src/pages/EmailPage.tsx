@@ -79,7 +79,10 @@ export function EmailPage() {
   const mailbox = (searchParams.get('mailbox') || 'INBOX').trim() || 'INBOX';
   const uid = (searchParams.get('uid') || '').trim();
 
-  const accounts = accountsQuery.data ?? [];
+  const accounts = useMemo(() => {
+    if (!Array.isArray(accountsQuery.data)) return [];
+    return accountsQuery.data.filter((entry) => entry && typeof entry === 'object' && typeof (entry as any).id === 'number');
+  }, [accountsQuery.data]);
   const activeAccountId = useMemo(() => {
     if (Number.isFinite(accountIdParam) && accountIdParam > 0 && accounts.some((a) => a.id === accountIdParam)) return accountIdParam;
     return accounts[0]?.id ?? null;
@@ -161,6 +164,30 @@ export function EmailPage() {
     );
   }
 
+  if (accountsQuery.isError) {
+    return (
+      <div className="h-full overflow-auto p-6">
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-6">
+          <div className="mb-3 flex items-center gap-2">
+            <Mail size={18} className="text-cyan-300" />
+            <h1 className="text-xl font-semibold text-zinc-100">Email</h1>
+          </div>
+          <InlineError title="Email konnte nicht geladen werden" error={accountsQuery.error} />
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => void accountsQuery.refetch()} disabled={accountsQuery.isFetching}>
+              <RefreshCw size={14} className="mr-2" />
+              Erneut versuchen
+            </Button>
+            <Button variant="default" onClick={() => navigate('/app/settings')}>
+              <Settings size={14} className="mr-2" />
+              Zu den Einstellungen
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (accounts.length === 0) {
     return (
       <div className="h-full overflow-auto p-6">
@@ -181,8 +208,15 @@ export function EmailPage() {
     );
   }
 
-  const mailboxes = mailboxesQuery.data ?? [];
-  const messages = messagesQuery.data ?? [];
+  const mailboxes = useMemo(() => {
+    if (!Array.isArray(mailboxesQuery.data)) return [];
+    return mailboxesQuery.data.filter((entry) => entry && typeof entry === 'object' && typeof (entry as any).name === 'string');
+  }, [mailboxesQuery.data]);
+
+  const messages = useMemo(() => {
+    if (!Array.isArray(messagesQuery.data)) return [];
+    return messagesQuery.data.filter((entry) => entry && typeof entry === 'object' && typeof (entry as any).uid === 'string');
+  }, [messagesQuery.data]);
 
   const inboxAlternateHint = useMemo(() => {
     const inbox = mailboxes.find((box) => box.name.toUpperCase() === 'INBOX');

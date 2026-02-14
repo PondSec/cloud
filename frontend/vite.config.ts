@@ -12,6 +12,7 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    allowedHosts: ['cloud.pondsec.com'],
     proxy: {
       // Make IDE accessible via the same origin (useful for LAN access where :18080 may be blocked).
       '/ide': {

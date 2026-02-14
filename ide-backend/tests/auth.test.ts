@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -28,5 +29,19 @@ describe('auth API', () => {
 
     expect(login.status).toBe(200);
     expect(login.body.user.email).toBe('test@example.com');
+  });
+
+
+  it('rejects token with missing required claims', async () => {
+    ctx = await createTestContext();
+
+    const token = jwt.sign({ sub: 'user-1' }, process.env.JWT_SECRET as string, {
+      expiresIn: '5m',
+      issuer: 'cloudide-backend',
+      audience: 'cloudide-client',
+    });
+
+    const me = await request(ctx.app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
+    expect(me.status).toBe(401);
   });
 });

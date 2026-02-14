@@ -18,6 +18,8 @@ describe('workspace container start args', () => {
     expect(args).toContain('ALL');
     expect(args).toContain('--security-opt');
     expect(args).toContain('no-new-privileges');
+    expect(args).toContain('seccomp=default');
+    expect(args).toContain('--read-only');
     expect(args).toContain('--cpus');
     expect(args).toContain('1.5');
     expect(args).toContain('--memory');
@@ -27,4 +29,21 @@ describe('workspace container start args', () => {
     expect(args).toContain('--network');
     expect(args).toContain('none');
   });
+
+  it('can omit seccomp profile when disabled by config', () => {
+    const args = buildDockerRunArgs({
+      workspaceId: 'ws-123',
+      image: 'cloudide-workspace:latest',
+      volumeName: 'cloudide-workspaces',
+      cpuLimit: '1',
+      memLimit: '1024m',
+      pidsLimit: 256,
+      allowEgress: true,
+      workspaceNetwork: 'bridge',
+      seccompProfile: '',
+    });
+
+    expect(args).not.toContain('seccomp=default');
+  });
+
 });

@@ -12,16 +12,17 @@ services:
       dockerfile: infra/backend.Dockerfile
     environment:
       PORT: 8080
-      NODE_ENV: development
-      JWT_SECRET: super-secret-jwt-change-me
-      APP_ENCRYPTION_KEY: super-secret-encryption-change-me
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?set APP_ENCRYPTION_KEY}
       DB_PATH: /data/cloudide.db
       WORKSPACES_ROOT: /workspaces
       RUNNER_URL: http://runner:8081
       RUNNER_WS_URL: ws://runner:8081
       WORKSPACE_IMAGE: cloudide-workspace:latest
       WORKSPACE_VOLUME: cloudide-workspaces
-      CORS_ORIGIN: http://localhost:5173,http://127.0.0.1:5173,https://cloud.pondsec.com
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173,http://127.0.0.1:5173}
+      RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:?set RUNNER_SHARED_SECRET}
     volumes:
       - cloudide-db:/data
       - cloudide-workspaces:/workspaces
@@ -47,6 +48,7 @@ services:
       DEFAULT_MEM_LIMIT: 1024m
       DEFAULT_PIDS_LIMIT: '256'
       DEFAULT_ALLOW_EGRESS: 'true'
+      RUNNER_SHARED_SECRET: ${RUNNER_SHARED_SECRET:?set RUNNER_SHARED_SECRET}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - cloudide-workspaces:/workspaces

@@ -15,8 +15,14 @@ export function verifySessionToken(token) {
     if (!payload || typeof payload !== 'object') {
         throw new Error('Invalid session token payload');
     }
+    if (typeof payload.sub !== 'string' || !payload.sub.trim()) {
+        throw new Error('Invalid session token subject');
+    }
+    if (typeof payload.email !== 'string' || !payload.email.trim()) {
+        throw new Error('Invalid session token email');
+    }
     return {
-        sub: String(payload.sub),
-        email: String(payload.email),
+        sub: payload.sub,
+        email: payload.email.toLowerCase(),
     };
 }

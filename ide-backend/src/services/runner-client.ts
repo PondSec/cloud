@@ -14,6 +14,7 @@ async function runnerRequest<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       'content-type': 'application/json',
+      'x-runner-secret': config.runnerSharedSecret,
       ...(init?.headers ?? {}),
     },
   });

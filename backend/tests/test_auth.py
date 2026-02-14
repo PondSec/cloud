@@ -97,3 +97,45 @@ def test_ui_preferences_are_user_specific(client, app):
     assert payload["accentHue"] == 188
     assert payload["dockPosition"] == "bottom"
     assert payload["dockEdgeOffset"] == 0
+
+
+def test_refresh_token_rotation_and_reuse_blocked(client):
+    login = client.post('/auth/login', json={'username': 'alice', 'password': 'alicepass'})
+    assert login.status_code == 200
+    refresh_token = login.get_json()['refresh_token']
+
+    first = client.post('/auth/refresh', headers={'Authorization': f'Bearer {refresh_token}'})
+    assert first.status_code == 200
+    first_payload = first.get_json()
+    assert 'access_token' in first_payload
+    assert 'refresh_token' in first_payload
+
+    second = client.post('/auth/refresh', headers={'Authorization': f'Bearer {refresh_token}'})
+    assert second.status_code == 401
+    assert second.get_json()['error']['code'] == 'TOKEN_REUSED'
+
+
+def test_wrong_audience_token_rejected(client, app):
+    import jwt as pyjwt
+    from datetime import datetime, timedelta, timezone
+
+    with app.app_context():
+        bad_token = pyjwt.encode(
+            {
+                'sub': '1',
+                'type': 'access',
+                'fresh': False,
+                'iat': datetime.now(timezone.utc),
+                'nbf': datetime.now(timezone.utc),
+                'exp': datetime.now(timezone.utc) + timedelta(minutes=5),
+                'jti': 'bad-aud-jti',
+                'csrf': 'csrf',
+                'iss': app.config['JWT_ENCODE_ISSUER'],
+                'aud': 'invalid-audience',
+            },
+            app.config['JWT_SECRET_KEY'],
+            algorithm='HS256',
+        )
+
+    me = client.get('/auth/me', headers={'Authorization': f'Bearer {bad_token}'})
+    assert me.status_code == 401

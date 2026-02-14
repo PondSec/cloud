@@ -10,6 +10,7 @@ import { config } from '../config.js';
 import { requireAuthWs } from '../auth/middleware.js';
 import { requireWorkspace, workspaceRootPath, readWorkspaceSettings } from '../workspace/service.js';
 import { ensureWorkspaceContainer } from '../services/runner-client.js';
+import { isAllowedOrigin } from '../utils/origin.js';
 
 interface UpgradeContext {
   server: WebSocketServer;
@@ -31,7 +32,20 @@ export function registerWebSocketBridge(context: UpgradeContext): void {
   });
 }
 
-export async function handleWsUpgrade(req: IncomingMessage, socket: any, head: Buffer, wss: WebSocketServer): Promise<void> {
+export async function handleWsUpgrade(
+  req: IncomingMessage,
+  socket: any,
+  head: Buffer,
+  wss: WebSocketServer,
+  allowedOrigins: string[],
+  allowAllOrigins: boolean,
+): Promise<void> {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+  if (!origin || !isAllowedOrigin(origin, allowedOrigins, allowAllOrigins)) {
+    socket.destroy();
+    return;
+  }
+
   const url = parseQuery(req);
   const pathname = url.pathname;
 
@@ -80,7 +94,11 @@ export async function handleWsUpgrade(req: IncomingMessage, socket: any, head: B
 }
 
 function proxyWs(clientWs: WebSocket, target: string): void {
-  const upstream = new WebSocket(target);
+  const upstream = new WebSocket(target, {
+    headers: {
+      'x-runner-secret': config.runnerSharedSecret,
+    },
+  });
   const pendingClientMessages: Array<{ data: Parameters<WebSocket['send']>[0]; isBinary: boolean }> = [];
 
   clientWs.on('message', (data, isBinary) => {

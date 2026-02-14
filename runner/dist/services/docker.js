@@ -12,7 +12,8 @@ export function workspaceDir(workspaceId) {
 export function buildDockerRunArgs(args) {
     const containerName = workspaceContainerName(args.workspaceId);
     const workdir = `/workspaces/${args.workspaceId}`;
-    return [
+    const seccompProfile = (args.seccompProfile ?? config.runnerSeccompProfile).trim();
+    const runArgs = [
         'run',
         '-d',
         '--name',
@@ -23,27 +24,12 @@ export function buildDockerRunArgs(args) {
         'ALL',
         '--security-opt',
         'no-new-privileges',
-        '--security-opt',
-        'seccomp=default',
-        '--read-only',
-        '--cpus',
-        args.cpuLimit,
-        '--memory',
-        args.memLimit,
-        '--pids-limit',
-        String(args.pidsLimit),
-        '--tmpfs',
-        '/tmp:rw,noexec,nosuid,size=64m',
-        '--mount',
-        `type=volume,src=${args.volumeName},dst=/workspaces`,
-        '--workdir',
-        workdir,
-        '--network',
-        args.allowEgress ? args.workspaceNetwork : 'none',
-        args.image,
-        'sleep',
-        'infinity',
     ];
+    if (seccompProfile) {
+        runArgs.push('--security-opt', `seccomp=${seccompProfile}`);
+    }
+    runArgs.push('--read-only', '--cpus', args.cpuLimit, '--memory', args.memLimit, '--pids-limit', String(args.pidsLimit), '--tmpfs', '/tmp:rw,noexec,nosuid,size=64m', '--mount', `type=volume,src=${args.volumeName},dst=/workspaces`, '--workdir', workdir, '--network', args.allowEgress ? args.workspaceNetwork : 'none', args.image, 'sleep', 'infinity');
+    return runArgs;
 }
 export async function ensureWorkspaceDirectory(workspaceId) {
     await fs.mkdir(workspaceDir(workspaceId), { recursive: true });
@@ -100,7 +86,7 @@ async function startContainerInternal(args) {
         }
         return { containerName, started: !running };
     }
-    const runArgs = buildDockerRunArgs({
+    const startSpec = {
         workspaceId: args.workspaceId,
         image: args.image ?? config.workspaceImage,
         volumeName: args.volumeName ?? config.workspaceVolume,
@@ -109,8 +95,19 @@ async function startContainerInternal(args) {
         pidsLimit: args.pidsLimit ?? config.defaultPidsLimit,
         allowEgress: args.allowEgress ?? config.defaultAllowEgress,
         workspaceNetwork: args.workspaceNetwork ?? config.workspaceNetwork,
-    });
-    const started = await runCommand(runArgs);
+    };
+    const runArgs = buildDockerRunArgs(startSpec);
+    let started = await runCommand(runArgs);
+    if (started.exitCode !== 0 &&
+        config.allowSeccompFallback &&
+        config.runnerSeccompProfile.trim() &&
+        isSeccompProfileUnavailable(`${started.stderr}\n${started.stdout}`)) {
+        const fallbackRunArgs = buildDockerRunArgs({
+            ...startSpec,
+            seccompProfile: '',
+        });
+        started = await runCommand(fallbackRunArgs);
+    }
     if (started.exitCode !== 0) {
         const combined = `${started.stderr}\n${started.stdout}`;
         if (isContainerNameConflict(combined)) {
@@ -179,11 +176,14 @@ export async function ensureWorkspaceImageBuilt() {
     throw new Error(`Workspace image '${config.workspaceImage}' not found. Build it first (docker compose build workspace-image).`);
 }
 function escapeShellPath(value) {
-    return `'${value.replace(/'/g, `'"'"'`)}'`;
+    return `'${value.replace(/'/g, `"'"'`)}'`;
 }
 function isNoSuchContainer(output) {
     return /No such object|No such container|No such file or directory/i.test(output);
 }
 function isContainerNameConflict(output) {
     return /Conflict\.\s+The container name\b/i.test(output) || /is already in use by container/i.test(output);
+}
+function isSeccompProfileUnavailable(output) {
+    return /opening seccomp profile|seccomp profile.*failed|seccomp.+no such file or directory/i.test(output);
 }

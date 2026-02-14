@@ -32,6 +32,8 @@ export const config = {
   defaultMemLimit: env('DEFAULT_MEM_LIMIT', '1024m'),
   defaultPidsLimit: envInt('DEFAULT_PIDS_LIMIT', 256),
   defaultAllowEgress: envBool('DEFAULT_ALLOW_EGRESS', true),
+  runnerSeccompProfile: env('RUNNER_SECCOMP_PROFILE', 'default'),
+  allowSeccompFallback: envBool('RUNNER_ALLOW_SECCOMP_FALLBACK', true),
   runnerSharedSecret: env('RUNNER_SHARED_SECRET', 'dev-runner-shared-secret-change-me'),
   workspaceImageContext: env('WORKSPACE_IMAGE_CONTEXT', '/infra/workspace-image'),
   workspaceImageDockerfile: env('WORKSPACE_IMAGE_DOCKERFILE', '/infra/workspace-image/Dockerfile'),

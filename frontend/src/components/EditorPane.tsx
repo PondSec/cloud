@@ -12,6 +12,8 @@ interface EditorPaneProps {
   token: string;
   onCursorChange: (line: number, column: number) => void;
   onProblems: (items: string[]) => void;
+  reveal?: { id: number; path: string; line: number; column: number } | null;
+  onRevealApplied?: (id: number) => void;
 }
 
 const languageByExt: Record<string, string> = {
@@ -125,7 +127,16 @@ const voidHtmlTags = new Set([
   'wbr',
 ]);
 
-export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorChange, onProblems }: EditorPaneProps) {
+export function EditorPane({
+  workspaceId,
+  activeFile,
+  onChange,
+  token,
+  onCursorChange,
+  onProblems,
+  reveal,
+  onRevealApplied,
+}: EditorPaneProps) {
   const monacoRef = useRef<Monaco | null>(null);
   const editorRef = useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
   const lspClients = useRef(new Map<string, LspClient>());
@@ -224,23 +235,23 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
 
             const edits: monacoEditor.languages.IWorkspaceTextEdit[] = [];
             for (const [uri, uriEdits] of Object.entries(result.changes)) {
-              const firstEdit = (uriEdits as any[])[0];
-              if (!firstEdit) {
-                continue;
-              }
-              edits.push({
-                resource: monaco.Uri.parse(uri),
-                textEdit: {
-                  range: {
-                    startLineNumber: firstEdit.range.start.line + 1,
-                    startColumn: firstEdit.range.start.character + 1,
-                    endLineNumber: firstEdit.range.end.line + 1,
-                    endColumn: firstEdit.range.end.character + 1,
+              const list = Array.isArray(uriEdits) ? (uriEdits as any[]) : [];
+              for (const edit of list) {
+                if (!edit?.range) continue;
+                edits.push({
+                  resource: monaco.Uri.parse(uri),
+                  textEdit: {
+                    range: {
+                      startLineNumber: edit.range.start.line + 1,
+                      startColumn: edit.range.start.character + 1,
+                      endLineNumber: edit.range.end.line + 1,
+                      endColumn: edit.range.end.character + 1,
+                    },
+                    text: edit.newText,
                   },
-                  text: firstEdit.newText,
-                },
-                versionId: undefined,
-              });
+                  versionId: undefined,
+                });
+              }
             }
 
             return { edits };
@@ -366,6 +377,12 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
         const monaco = monacoRef.current;
         if (!monaco) return;
         const uri = monaco.Uri.parse(params.uri);
+        const workspacePrefix = `/workspaces/${workspaceId}/`;
+        let relPath = uri.path || '';
+        if (relPath.startsWith(workspacePrefix)) {
+          relPath = relPath.slice(workspacePrefix.length);
+        }
+        relPath = relPath.replace(/^\/+/, '').replace(/\\/g, '/');
         const markers = (params.diagnostics || []).map((diag: any) => ({
           startLineNumber: diag.range.start.line + 1,
           startColumn: diag.range.start.character + 1,
@@ -379,7 +396,11 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
           return;
         }
         monaco.editor.setModelMarkers(model, `lsp-${lang}`, markers);
-        onProblems(markers.map((m: any) => `${m.startLineNumber}:${m.startColumn} ${m.message}`));
+        onProblems(
+          markers.map((m: any) =>
+            relPath ? `${relPath}:${m.startLineNumber}:${m.startColumn} ${m.message}` : `${m.startLineNumber}:${m.startColumn} ${m.message}`,
+          ),
+        );
       });
       lspClients.current.set(lang, client);
     }
@@ -416,6 +437,22 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
       lspClients.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    if (!reveal || !activeFile || reveal.path !== activeFile.path) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    const monaco = monacoRef.current;
+    if (!monaco) return;
+
+    const lineNumber = Math.max(1, reveal.line);
+    const column = Math.max(1, reveal.column);
+    editor.setPosition({ lineNumber, column });
+    editor.revealPositionInCenter({ lineNumber, column }, monaco.editor.ScrollType.Smooth);
+    editor.setSelection(new monaco.Selection(lineNumber, column, lineNumber, column));
+    editor.focus();
+    onRevealApplied?.(reveal.id);
+  }, [reveal?.id, reveal?.path, reveal?.line, reveal?.column, activeFile?.path]);
 
   const modelPath = activeFile ? `file:///workspaces/${workspaceId}/${activeFile.path}` : undefined;
 
@@ -507,6 +544,16 @@ export function EditorPane({ workspaceId, activeFile, onChange, token, onCursorC
             ]);
             editor.setPosition({ lineNumber, column: columnAfter });
           });
+
+          if (reveal && activeFile && reveal.path === activeFile.path) {
+            const lineNumber = Math.max(1, reveal.line);
+            const column = Math.max(1, reveal.column);
+            editor.setPosition({ lineNumber, column });
+            editor.revealPositionInCenter({ lineNumber, column }, monaco.editor.ScrollType.Smooth);
+            editor.setSelection(new monaco.Selection(lineNumber, column, lineNumber, column));
+            editor.focus();
+            onRevealApplied?.(reveal.id);
+          }
         }}
         onChange={(value) => onChange(value ?? '')}
       />

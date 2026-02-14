@@ -5,11 +5,13 @@ import { Link } from 'react-router-dom';
 
 import { ActivityBar, type ActivityView } from '../components/ActivityBar';
 import { CommandPalette } from '../components/CommandPalette';
+import { FileQuickOpen } from '../components/FileQuickOpen';
 import { EditorPane } from '../components/EditorPane';
 import { EditorTabs } from '../components/EditorTabs';
 import { ExplorerPanel } from '../components/ExplorerPanel';
 import { PreviewPanel } from '../components/PreviewPanel';
 import { RunPanel } from '../components/RunPanel';
+import { SearchPanel } from '../components/SearchPanel';
 import { SourceControlPanel } from '../components/SourceControlPanel';
 import { StatusBar } from '../components/StatusBar';
 import { TerminalPanel } from '../components/TerminalPanel';
@@ -59,11 +61,14 @@ export function IdePage() {
   const [runtimeStatus, setRuntimeStatus] = useState('Runner: unbekannt');
   const [cursor, setCursor] = useState({ line: 1, column: 1 });
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [fileQuickOpenOpen, setFileQuickOpenOpen] = useState(false);
   const [gitDiffRaw, setGitDiffRaw] = useState('');
-  const [searchText, setSearchText] = useState('');
   const [debugCommand, setDebugCommand] = useState('');
   const [extensionCommand, setExtensionCommand] = useState('');
   const [previewRefreshToken, setPreviewRefreshToken] = useState(0);
+  const [recentFiles, setRecentFiles] = useState<string[]>([]);
+  const revealSeqRef = useRef(1);
+  const [reveal, setReveal] = useState<{ id: number; path: string; line: number; column: number } | null>(null);
   const previewReloadTimerRef = useRef<number | null>(null);
   const previewAutosaveTimerRef = useRef<number | null>(null);
 
@@ -88,6 +93,39 @@ export function IdePage() {
     if (['c', 'h'].includes(ext)) return 'c';
     return ext || 'plaintext';
   }, [activeFileExt, activeFile]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(`studio.recents.${workspaceId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          setRecentFiles(parsed.filter((v) => typeof v === 'string').slice(0, 60));
+          return;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setRecentFiles([]);
+  }, [workspaceId]);
+
+  function rememberRecent(path: string): void {
+    setRecentFiles((prev) => {
+      const next = [path, ...prev.filter((p) => p !== path)].slice(0, 60);
+      try {
+        window.localStorage.setItem(`studio.recents.${workspaceId}`, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    if (!activeFilePath) return;
+    rememberRecent(activeFilePath);
+  }, [activeFilePath]);
 
   async function loadWorkspace(): Promise<void> {
     if (!token) {
@@ -130,7 +168,7 @@ export function IdePage() {
     }
   }
 
-  async function openPath(path: string): Promise<void> {
+  async function openPath(path: string, location?: { line: number; column: number }): Promise<void> {
     const node = files.find((item) => item.path === path);
     if (!path) {
       await loadDir('');
@@ -150,6 +188,10 @@ export function IdePage() {
         language: activeLanguage,
         dirty: false,
       });
+      rememberRecent(path);
+      if (location) {
+        setReveal({ id: revealSeqRef.current++, path, line: location.line, column: location.column });
+      }
     } catch (error: any) {
       appendOutput(`[error] ${error?.response?.data?.error || error.message}\n`);
     }
@@ -377,18 +419,38 @@ export function IdePage() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'p') {
+      const isMod = event.metaKey || event.ctrlKey;
+      const key = event.key.toLowerCase();
+
+      if (isMod && key === 'p' && event.shiftKey) {
         event.preventDefault();
+        setFileQuickOpenOpen(false);
         setPaletteOpen(true);
+        return;
       }
 
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+      if (isMod && key === 'p') {
+        event.preventDefault();
+        setPaletteOpen(false);
+        setFileQuickOpenOpen(true);
+        return;
+      }
+
+      if (isMod && event.shiftKey && key === 'f') {
+        event.preventDefault();
+        setActiveView('search');
+        return;
+      }
+
+      if (isMod && key === 's') {
         event.preventDefault();
         void saveActive();
+        return;
       }
 
       if (event.key === 'Escape') {
         setPaletteOpen(false);
+        setFileQuickOpenOpen(false);
       }
     };
 
@@ -398,12 +460,16 @@ export function IdePage() {
 
   const commandPaletteItems = useMemo(
     () => [
+      { id: 'file.open', title: 'Datei: Öffnen…', run: () => setFileQuickOpenOpen(true) },
       { id: 'files.refresh', title: 'Dateien: Aktualisieren', run: () => void loadDir(explorerPath) },
       { id: 'file.save', title: 'Datei: Aktive Datei speichern', run: () => void saveActive() },
+      { id: 'search.workspace', title: 'Suche: Im Workspace suchen', run: () => setActiveView('search') },
       { id: 'git.refresh', title: 'Git: Status aktualisieren', run: () => void refreshGit() },
       { id: 'task.run', title: 'Tasks: Starten', run: () => void runTask('run') },
       { id: 'task.build', title: 'Tasks: Build', run: () => void runTask('build') },
+      { id: 'task.test', title: 'Tasks: Tests', run: () => void runTask('test') },
       { id: 'preview.toggle', title: 'Ansicht: Vorschau umschalten', run: () => setPreviewVisible(!previewVisible) },
+      { id: 'output.clear', title: 'Ausgabe: Leeren', run: () => clearOutput() },
     ],
     [explorerPath, previewVisible, workspaceSettings, activeFile],
   );
@@ -561,22 +627,12 @@ export function IdePage() {
 
   if (activeView === 'search') {
     sidebarBody = (
-      <div className="panel-content">
-        <input
-          className="input"
-          placeholder="In geöffneten Dateien suchen"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          style={{ width: '100%', marginBottom: 8 }}
-        />
-        {openFiles
-          .filter((file) => !searchText || file.content.toLowerCase().includes(searchText.toLowerCase()))
-          .map((file) => (
-            <button className="workspace-item" key={file.path} onClick={() => setActiveFile(file.path)}>
-              {file.path}
-            </button>
-          ))}
-      </div>
+      <SearchPanel
+        workspaceId={workspaceId}
+        onOpenMatch={(path, line, column) => {
+          void openPath(path, { line, column });
+        }}
+      />
     );
   }
 
@@ -765,8 +821,25 @@ export function IdePage() {
                 <button className="btn" onClick={() => setPreviewVisible(!previewVisible)}>
                   {previewVisible ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
                 </button>
-                <button className="btn" onClick={() => setPaletteOpen(true)}>
-                  Cmd/Ctrl+P
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setPaletteOpen(false);
+                    setFileQuickOpenOpen(true);
+                  }}
+                  title="Datei öffnen (Ctrl/Cmd+P)"
+                >
+                  Datei öffnen
+                </button>
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setFileQuickOpenOpen(false);
+                    setPaletteOpen(true);
+                  }}
+                  title="Befehle (Ctrl/Cmd+Shift+P)"
+                >
+                  Befehle
                 </button>
               </div>
             </div>
@@ -780,6 +853,10 @@ export function IdePage() {
               token={token}
               onCursorChange={(line, column) => setCursor({ line, column })}
               onProblems={setProblems}
+              reveal={reveal}
+              onRevealApplied={(id) => {
+                setReveal((current) => (current && current.id === id ? null : current));
+              }}
             />
           </section>
 
@@ -822,7 +899,45 @@ export function IdePage() {
 
           <div className="bottom-content">
             {bottomPanel === 'terminal' && <TerminalPanel workspaceId={workspaceId} token={token} />}
-            {bottomPanel === 'problems' && (problems.length ? problems.join('\n') : 'Keine Diagnosen')}
+            {bottomPanel === 'problems' &&
+              (problems.length ? (
+                <div className="problems-list">
+                  {problems.map((entry, idx) => {
+                    const withPath = /^(.+?):(\d+):(\d+)\s(.*)$/.exec(entry);
+                    const withoutPath = /^(\d+):(\d+)\s(.*)$/.exec(entry);
+                    const path = withPath?.[1] ?? activeFile?.path ?? '';
+                    const line = withPath ? Number(withPath[2]) : withoutPath ? Number(withoutPath[1]) : 1;
+                    const column = withPath ? Number(withPath[3]) : withoutPath ? Number(withoutPath[2]) : 1;
+                    const message = withPath ? withPath[4] : withoutPath ? withoutPath[3] : entry;
+                    const canOpen = Boolean(path);
+
+                    return (
+                      <button
+                        key={`${path}:${line}:${column}:${idx}`}
+                        type="button"
+                        className="problem-item"
+                        disabled={!canOpen}
+                        onClick={() => {
+                          if (!canOpen) return;
+                          void openPath(path, { line, column });
+                          setBottomPanel('problems');
+                        }}
+                        title={canOpen ? `${path}:${line}:${column}` : message}
+                      >
+                        <div className="problem-item-head">
+                          <span className="problem-item-path">{path || 'Problem'}</span>
+                          <span className="problem-item-loc">
+                            {line}:{column}
+                          </span>
+                        </div>
+                        <div className="problem-item-msg">{message}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                'Keine Diagnosen'
+              ))}
             {bottomPanel === 'output' && (outputLines.length ? outputLines.join('') : 'Keine Task-Ausgabe')}
           </div>
         </section>
@@ -836,6 +951,13 @@ export function IdePage() {
         />
       </div>
 
+      <FileQuickOpen
+        visible={fileQuickOpenOpen}
+        workspaceId={workspaceId}
+        recentFiles={recentFiles.length ? recentFiles : openFiles.map((f) => f.path)}
+        onClose={() => setFileQuickOpenOpen(false)}
+        onOpenPath={(path) => void openPath(path)}
+      />
       <CommandPalette visible={paletteOpen} onClose={() => setPaletteOpen(false)} commands={commandPaletteItems} />
     </div>
   );

@@ -5,6 +5,7 @@ import { getAccessToken } from '@/lib/auth-storage';
 import { BRAND } from '@/lib/brand';
 import { ensureIdeSessionFromCloud } from '@/lib/ide-bridge';
 import { getIdeToken } from '@/lib/ide-auth';
+import { ideApiBaseUrl } from '@/lib/ide-api';
 
 export function RequireIdeAuth() {
   const location = useLocation();
@@ -64,14 +65,21 @@ export function RequireIdeAuth() {
   }
 
   if (state === 'error') {
+    const baseUrl = ideApiBaseUrl();
     return (
       <div className="ide-root">
         <main className="workspace-page">
           <section className="card">
             <h2 style={{ marginTop: 0 }}>Studio aktuell nicht verfügbar</h2>
             <p style={{ color: '#ff7b7b' }}>{errorMessage}</p>
+            <p style={{ color: '#9f9f9f', marginBottom: 6 }}>
+              IDE API: <code>{baseUrl}</code>
+            </p>
+            <p style={{ color: '#9f9f9f', marginTop: 0 }}>
+              Health-Check: <code>{baseUrl.replace(/\/$/, '')}/health</code>
+            </p>
             <p style={{ color: '#9f9f9f' }}>
-              Prüfen Sie, ob die Studio-Dienste laufen (`docker compose up -d workspace-image runner ide-backend`).
+              Prüfen Sie, ob die Studio-Dienste laufen (`docker compose up -d --build workspace-image runner ide-backend`).
             </p>
           </section>
         </main>

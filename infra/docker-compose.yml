@@ -10,6 +10,9 @@ services:
     build:
       context: .
       dockerfile: infra/backend.Dockerfile
+    # Needs write access to /data (sqlite) and /workspaces (workspace metadata).
+    # On Docker Desktop the mounted volumes are owned by root by default; running as root avoids SQLITE_CANTOPEN.
+    user: "0:0"
     environment:
       PORT: 8080
       NODE_ENV: ${NODE_ENV:-development}
@@ -35,6 +38,8 @@ services:
     build:
       context: .
       dockerfile: infra/runner.Dockerfile
+    # Needs access to /var/run/docker.sock; on Docker Desktop it's root-owned (660).
+    user: "0:0"
     environment:
       PORT: 8081
       DOCKER_BIN: docker

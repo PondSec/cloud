@@ -41,6 +41,8 @@
     "integrations.slack": false,
     "integrations.ldap": false,
 
+    "security.csrf": false,
+    "security.rate_limit": false,
     "security.malware_scan": false,
     "security.ssrf_guard": false,
     "security.preview_sanitization": false,
@@ -67,4 +69,3 @@
     "deploy.acme_tls": false
   }
 }
-

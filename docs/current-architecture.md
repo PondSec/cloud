@@ -25,6 +25,7 @@ Backend (`/backend`)
 - DB migrations via `Flask-Migrate` (Alembic) in `/backend/migrations`
 - Auth via `Flask-JWT-Extended` (access + refresh JWTs)
 - Password hashing via `argon2-cffi`
+- Feature flags loaded from `/config/feature-flags.json` (new features default OFF)
 
 Frontend (`/frontend`)
 - React 18 + TypeScript
@@ -55,6 +56,10 @@ Cloud backend (`/backend`)
 - RBAC model:
   - Users have roles; roles have permissions (`PermissionCode` enum in `backend/app/models.py`).
   - Backend endpoint guards use `@permission_required(...)`.
+
+App-layer protections (baseline, behind flags)
+- CSRF origin/referrer validation for state-changing requests (`security.csrf`)
+- Global request rate limiting (IP + user + endpoint class) (`security.rate_limit`)
 
 IDE backend (`/ide-backend`)
 - Has its own JWT secret/config for IDE-specific auth and also enforces origin checks for WebSocket upgrades.
@@ -144,4 +149,3 @@ Cloud Workspace (backend + frontend)
 Cloud IDE (frontend + ide-backend + runner)
 - Workspace list and IDE experience under `/dev/*`
 - WebSocket-based live interactions (terminal/preview)
-

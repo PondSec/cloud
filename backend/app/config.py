@@ -54,6 +54,14 @@ class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR / 'cloud.db'}")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    FEATURE_FLAGS_PATH = os.getenv("FEATURE_FLAGS_PATH", str(BASE_DIR / "config" / "feature-flags.json"))
+
+    # Cookie baseline. Even if the app is not using Flask sessions for auth yet, any
+    # cookies we set should default to safe attributes.
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = env_str("SESSION_COOKIE_SAMESITE", "Lax")
+    SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", env_str("ENV", "").lower() == "production")
+
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-jwt-secret-key-change-me-at-least-32-bytes")
     MAIL_CREDENTIALS_KEY = os.getenv("MAIL_CREDENTIALS_KEY", JWT_SECRET_KEY)
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=env_int("ACCESS_TOKEN_EXPIRES_MINUTES", 15))
@@ -99,6 +107,15 @@ class Config:
     METRICS_RETENTION_DAYS = max(1, env_int("METRICS_RETENTION_DAYS", 7))
     DOCKER_ENABLED = env_bool("DOCKER_ENABLED", True)
     RATE_LIMIT_MONITORING = env_str("RATE_LIMIT_MONITORING", "60/min")
+    RATE_LIMIT_DEFAULT = env_str("RATE_LIMIT_DEFAULT", "600/min")
+    RATE_LIMIT_AUTH = env_str("RATE_LIMIT_AUTH", "120/min")
+    RATE_LIMIT_FILES_READ = env_str("RATE_LIMIT_FILES_READ", "600/min")
+    RATE_LIMIT_FILES_WRITE = env_str("RATE_LIMIT_FILES_WRITE", "240/min")
+    RATE_LIMIT_SHARES = env_str("RATE_LIMIT_SHARES", "240/min")
+    RATE_LIMIT_OFFICE = env_str("RATE_LIMIT_OFFICE", "240/min")
+    RATE_LIMIT_ADMIN = env_str("RATE_LIMIT_ADMIN", "120/min")
+    RATE_LIMIT_MAIL = env_str("RATE_LIMIT_MAIL", "120/min")
+    RATE_LIMIT_INTEGRATION = env_str("RATE_LIMIT_INTEGRATION", "120/min")
     MONITORING_CACHE_TTL_SECONDS = max(1, env_int("MONITORING_CACHE_TTL_SECONDS", 3))
 
     MAX_CONTENT_LENGTH = env_int("MAX_CONTENT_LENGTH", 1024 * 1024 * 1024)

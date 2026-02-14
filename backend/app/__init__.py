@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_jwt_extended import JWTManager
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
@@ -12,7 +12,10 @@ from .admin import admin_bp
 from .audit import audit_bp
 from .auth import auth_bp
 from .bootstrap import bootstrap_defaults
+from .common.csrf import csrf_origin_protect
 from .common.errors import error_payload, register_error_handlers
+from .common.feature_flags import load_feature_flags
+from .common.request_rate_limit import rate_limit_request
 from .common.schema_compat import ensure_audit_schema_compat, ensure_inventorypro_schema_compat, ensure_mail_schema_compat
 from .config import Config
 from .extensions import cors, db, jwt, migrate
@@ -36,7 +39,12 @@ def _apply_security_headers(app: Flask) -> None:
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
         response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+        response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
         response.headers.setdefault("Content-Security-Policy", "default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'")
+        if app.config.get("ENV") == "production":
+            proto = (request.headers.get("X-Forwarded-Proto") or request.scheme or "").split(",", 1)[0].strip().lower()
+            if proto == "https":
+                response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         return response
 
 
@@ -60,6 +68,10 @@ def create_app(config_override: dict[str, Any] | None = None) -> Flask:
     if config_override:
         app.config.update(config_override)
 
+    # Feature flags (security-by-default): new functionality is introduced behind flags (default OFF).
+    if not isinstance(app.config.get("FEATURE_FLAGS"), dict):
+        app.config["FEATURE_FLAGS"] = load_feature_flags(str(app.config.get("FEATURE_FLAGS_PATH") or ""))
+
     if app.config.get("ENV") == "production" and app.config["JWT_SECRET_KEY"] == "dev-jwt-secret-key-change-me-at-least-32-bytes":
         raise RuntimeError("JWT_SECRET_KEY must be set to a strong value in production.")
 
@@ -71,6 +83,10 @@ def create_app(config_override: dict[str, Any] | None = None) -> Flask:
     _register_jwt_handlers(jwt)
     _apply_security_headers(app)
     cors.init_app(app, resources={r"/*": {"origins": app.config["FRONTEND_ORIGINS"]}})
+
+    # Global middleware (behind feature flags where applicable).
+    app.before_request(rate_limit_request)
+    app.before_request(csrf_origin_protect)
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(files_bp)

@@ -9,3 +9,9 @@ This file is appended after each implemented step.
 - Added project skeleton: `/docs/decisions/`, `/docs/runbooks/`, `/config/feature-flags.json`, `/scripts/`, `/services/`.
 - Added master backlog: `/docs/roadmap.md` (Epics 1..12 + finalization).
 - Fixed OnlyOffice API aliasing: ensured `/api/office/*` routes exist (kept legacy `/api/*` alias temporarily) so signed file URLs work and tests pass.
+- Phase 1.1 completed (Security baseline):
+- Added feature flags loader (`/config/feature-flags.json` -> backend `FEATURE_FLAGS`).
+- Added CSRF origin/referrer protection for state-changing requests (flag: `security.csrf`).
+- Added global API rate limiting middleware (flag: `security.rate_limit`).
+- Added baseline secure cookie defaults in backend config.
+- Added `/docs/security-model.md` and `/docs/threat-model.md`.

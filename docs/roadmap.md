@@ -44,7 +44,7 @@ Legend
 
 ### CLOUD-0101 (P0) 1.1 Security Baseline (Global)
 
-- Status: TODO
+- Status: DONE
 - Depends on: CLOUD-0004
 - Acceptance Criteria: CSP/HSTS/frame/referrer/permissions headers; secure cookies; CSRF protection; rate limiting; brute force lockout; input validation baseline; OWASP smoke tests prove enforcement.
 - Test Plan: unit tests for middleware; integration tests for CSRF/rate-limit; e2e smoke: login + blocked CSRF.

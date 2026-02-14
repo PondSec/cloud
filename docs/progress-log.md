@@ -15,3 +15,9 @@ This file is appended after each implemented step.
 - Added global API rate limiting middleware (flag: `security.rate_limit`).
 - Added baseline secure cookie defaults in backend config.
 - Added `/docs/security-model.md` and `/docs/threat-model.md`.
+- Phase 1.2 completed (Audit event bus skeleton):
+- Added hash-chained `audit_events` table + SQLAlchemy model.
+- Implemented central audit bus (`audit.emit`) behind `audit.hash_chain`.
+- Added admin export/listing endpoints for hash-chained events (`/api/audit/events`).
+- Added `/scripts/verify-audit-chain`.
+- Ensured auth refresh + logout emit audit events; frontend logout calls `/auth/logout` best-effort.

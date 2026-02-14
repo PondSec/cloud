@@ -75,6 +75,7 @@ Cloud backend DB
   - Sharing: `share_links`, `internal_shares`
   - Settings: `app_settings`
   - Audit: `audit_logs`
+  - Audit (tamper-evident): `audit_events` (hash chain; behind feature flag)
   - Backups/restore metadata: `backup_jobs`, `restore_points`
   - Quotas/usage: `resource_quotas`
   - Monitoring snapshots: `system_metric_snapshots`

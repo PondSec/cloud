@@ -48,6 +48,11 @@ Rate limiting
 Cookies
 - Cookie defaults are configured to prefer secure attributes (`HttpOnly`, `SameSite=Lax`, `Secure` in production).
 
+Audit logging
+- Primary audit log: `audit_logs` (non-hash-chained, used by current UI).
+- Tamper-evident audit log: `audit_events` (hash-chained; flag `audit.hash_chain`).
+- Verification script: `/scripts/verify-audit-chain`.
+
 ## Storage
 
 - File blobs are stored on the local filesystem under `STORAGE_ROOT`.

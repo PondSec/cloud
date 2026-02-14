@@ -119,6 +119,9 @@ export const api = {
       const { data } = await client.post<AuthResponse>('/auth/login', { username, password });
       return data;
     },
+    async logout(): Promise<void> {
+      await client.post('/auth/logout', {});
+    },
     async me(): Promise<User> {
       const { data } = await client.get<{ user: User }>('/auth/me');
       return data.user;

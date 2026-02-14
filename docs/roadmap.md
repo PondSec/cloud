@@ -52,7 +52,7 @@ Legend
 
 ### CLOUD-0102 (P0) 1.2 Audit Event Bus (Hash-Chained)
 
-- Status: TODO
+- Status: DONE
 - Depends on: CLOUD-0101
 - Acceptance Criteria: central `audit.emit(...)`; DB `audit_events` with hash-chain fields; admin export JSON/CSV; UI list+filters+export; auth actions emit events; `scripts/verify-audit-chain` exists.
 - Test Plan: unit tests for hashing; integration tests for export; script test on fixture DB; e2e: login emits events and export works.

@@ -860,6 +860,7 @@ export function FileWorkspace({ showOverview = false }: FileWorkspaceProps) {
                   variant="secondary"
                   size="sm"
                   onClick={() => {
+                    void api.auth.logout().catch(() => {});
                     clearAuthSession();
                     queryClient.clear();
                     navigate('/login', { replace: true });

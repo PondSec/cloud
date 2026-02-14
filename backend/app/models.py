@@ -472,6 +472,57 @@ class AuditLog(db.Model):
         }
 
 
+class AuditEvent(db.Model):
+    """
+    Tamper-evident audit event log.
+
+    Hash chain:
+    - prev_hash points to the previous event_hash (or a genesis value).
+    - event_hash is computed over prev_hash + canonicalized event payload.
+    """
+
+    __tablename__ = "audit_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    ts = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, index=True)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    actor_ip = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+    action = db.Column(db.String(128), nullable=False, index=True)
+    entity_type = db.Column(db.String(64), nullable=True, index=True)
+    entity_id = db.Column(db.String(128), nullable=True)
+    metadata_json = db.Column("metadata", db.JSON, nullable=True)
+    severity = db.Column(db.String(16), nullable=False, default="info", index=True)
+    success = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    prev_hash = db.Column(db.String(64), nullable=False)
+    event_hash = db.Column(db.String(64), nullable=False, index=True)
+
+    actor = db.relationship("User", foreign_keys=[actor_user_id])
+
+    __table_args__ = (
+        db.Index("ix_audit_events_ts_actor", "ts", "actor_user_id"),
+        db.Index("ix_audit_events_ts_action", "ts", "action"),
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "ts": self.ts.isoformat(),
+            "actor_user_id": self.actor_user_id,
+            "actor_username": self.actor.username if self.actor is not None else None,
+            "actor_ip": self.actor_ip,
+            "user_agent": self.user_agent,
+            "action": self.action,
+            "entity_type": self.entity_type,
+            "entity_id": self.entity_id,
+            "metadata": self.metadata_json or {},
+            "severity": self.severity,
+            "success": bool(self.success),
+            "prev_hash": self.prev_hash,
+            "event_hash": self.event_hash,
+        }
+
+
 class BackupJob(db.Model):
     __tablename__ = "backup_jobs"
 

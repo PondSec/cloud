@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+BACKEND_DIR = ROOT / "backend"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Verify tamper-evident audit_events hash chain.")
+    parser.add_argument(
+        "--database-url",
+        dest="database_url",
+        default=os.getenv("DATABASE_URL", "").strip() or None,
+        help="Optional SQLAlchemy DATABASE_URL override (default: use backend config/default cloud.db).",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+
+    sys.path.insert(0, str(BACKEND_DIR))
+
+    from sqlalchemy.exc import OperationalError  # noqa: WPS433
+
+    from app import create_app  # noqa: WPS433
+    from app.common.audit_hash import GENESIS_HASH, compute_event_hash  # noqa: WPS433
+    from app.models import AuditEvent  # noqa: WPS433
+
+    config_override = {"TESTING": True}
+    if args.database_url:
+        config_override["SQLALCHEMY_DATABASE_URI"] = args.database_url
+
+    app = create_app(config_override)
+
+    with app.app_context():
+        try:
+            events = AuditEvent.query.order_by(AuditEvent.id.asc()).all()
+        except OperationalError as exc:
+            print("ERROR: failed to query audit_events (did you run migrations?)")
+            print(str(exc))
+            return 2
+
+        prev_hash = GENESIS_HASH
+        for event in events:
+            if event.prev_hash != prev_hash:
+                print(f"FAIL: audit_events#{event.id} prev_hash mismatch expected={prev_hash} actual={event.prev_hash}")
+                return 1
+
+            payload = {
+                "ts": event.ts,
+                "actor_user_id": event.actor_user_id,
+                "actor_ip": event.actor_ip,
+                "user_agent": event.user_agent,
+                "action": event.action,
+                "entity_type": event.entity_type,
+                "entity_id": event.entity_id,
+                "metadata": event.metadata_json or {},
+                "severity": event.severity,
+                "success": bool(event.success),
+            }
+            expected = compute_event_hash(prev_hash, payload)
+            if event.event_hash != expected:
+                print(f"FAIL: audit_events#{event.id} event_hash mismatch expected={expected} actual={event.event_hash}")
+                return 1
+
+            prev_hash = event.event_hash
+
+        print(f"OK: verified {len(events)} audit_events entries")
+        return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+

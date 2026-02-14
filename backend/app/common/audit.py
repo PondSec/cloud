@@ -7,6 +7,7 @@ from sqlalchemy.exc import InvalidRequestError, OperationalError, ProgrammingErr
 
 from ..extensions import db
 from ..models import AuditLog, User
+from .audit_bus import audit as audit_bus
 from .schema_compat import ensure_audit_schema_compat
 
 
@@ -41,6 +42,18 @@ def audit(
     actor_ip: str | None = None,
     user_agent: str | None = None,
 ) -> AuditLog | None:
+    audit_bus.emit(
+        {
+            "actor": actor,
+            "action": action,
+            "resource": {"type": (entity_type or target_type), "id": (entity_id or target_id)},
+            "metadata": metadata if metadata is not None else (details or {}),
+            "ip": actor_ip or _request_actor_ip(),
+            "ua": user_agent or _request_user_agent(),
+            "result": {"success": bool(success), "severity": (severity or "info").lower()},
+        }
+    )
+
     entry = AuditLog(
         actor_user_id=actor.id if actor else None,
         actor_ip=actor_ip or _request_actor_ip(),

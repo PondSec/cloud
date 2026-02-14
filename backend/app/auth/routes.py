@@ -394,7 +394,41 @@ def refresh():
     if not refresh_jti or refresh_exp <= 0:
         raise APIError(401, 'INVALID_TOKEN', 'Refresh token is malformed.')
     if used_refresh_tokens.was_used(refresh_jti):
+        audit(
+            action="auth.refresh_reuse_detected",
+            actor=user,
+            target_type="user",
+            target_id=str(user.id),
+            details={"jti": refresh_jti},
+            severity="warning",
+            success=False,
+        )
+        db.session.commit()
         raise APIError(401, 'TOKEN_REUSED', 'Refresh token has already been used.')
 
     used_refresh_tokens.mark_used(refresh_jti, refresh_exp)
+    audit(
+        action="auth.refresh",
+        actor=user,
+        target_type="user",
+        target_id=str(user.id),
+        details={"jti": refresh_jti},
+    )
+    db.session.commit()
     return jsonify(_token_response(user))
+
+
+@auth_bp.post("/logout")
+@jwt_required()
+def logout():
+    user = current_user(required=True)
+    assert user is not None
+
+    audit(
+        action="auth.logout",
+        actor=user,
+        target_type="user",
+        target_id=str(user.id),
+    )
+    db.session.commit()
+    return jsonify({"logged_out": True})

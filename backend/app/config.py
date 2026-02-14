@@ -64,6 +64,10 @@ class Config:
     STORAGE_ROOT = os.getenv("STORAGE_ROOT", str(BASE_DIR / "storage"))
     ONLYOFFICE_ENABLED = env_bool("ONLYOFFICE_ENABLED", True)
     ONLYOFFICE_DOCUMENT_SERVER_URL = os.getenv("ONLYOFFICE_DOCUMENT_SERVER_URL", "http://127.0.0.1:8080")
+    # Public URL that browsers use to load the OnlyOffice DocsAPI script.
+    # Keep this separate from ONLYOFFICE_DOCUMENT_SERVER_URL so the backend can talk to a local container
+    # while clients use a reverse-proxied HTTPS domain.
+    ONLYOFFICE_PUBLIC_DOCUMENT_SERVER_URL = os.getenv("ONLYOFFICE_PUBLIC_DOCUMENT_SERVER_URL", ONLYOFFICE_DOCUMENT_SERVER_URL)
     ONLYOFFICE_PUBLIC_BACKEND_URL = os.getenv("ONLYOFFICE_PUBLIC_BACKEND_URL", "http://127.0.0.1:5001")
     ONLYOFFICE_TOKEN_SECRET = os.getenv("ONLYOFFICE_TOKEN_SECRET", JWT_SECRET_KEY)
     ONLYOFFICE_TOKEN_TTL_SECONDS = env_int("ONLYOFFICE_TOKEN_TTL_SECONDS", 3600)

@@ -95,6 +95,9 @@ def _public_backend_base() -> str:
 def _document_server_base() -> str:
     return str(current_app.config["ONLYOFFICE_DOCUMENT_SERVER_URL"]).rstrip("/")
 
+def _document_server_public_base() -> str:
+    return str(current_app.config.get("ONLYOFFICE_PUBLIC_DOCUMENT_SERVER_URL") or _document_server_base()).rstrip("/")
+
 
 def _document_server_script_url() -> str:
     return f"{_document_server_base()}/web-apps/apps/api/documents/api.js"
@@ -234,7 +237,7 @@ def create_session():
         {
             "file_id": node.id,
             "can_edit": can_edit,
-            "document_server_url": _document_server_base(),
+            "document_server_url": _document_server_public_base(),
             "config": config,
         }
     )

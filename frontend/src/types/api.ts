@@ -70,7 +70,92 @@ export interface AdminSettings {
   allow_registration: boolean;
   max_upload_size: number;
   default_quota: number;
+  inventory_pro: {
+    enabled: boolean;
+    base_url: string;
+    sync_enabled: boolean;
+    sso_enabled: boolean;
+    enforce_sso: boolean;
+    auto_provision_users: boolean;
+    dock_enabled: boolean;
+    default_role_name: string;
+    has_shared_secret: boolean;
+    sync_endpoint: string;
+    sso_ticket_endpoint: string;
+    sso_exchange_endpoint: string;
+  };
   updated_at: string | null;
+}
+
+export interface InventoryProContext {
+  enabled: boolean;
+  dock_enabled: boolean;
+  base_url: string;
+  launch_url: string;
+  available: boolean;
+}
+
+export type MailSecurity = 'ssl' | 'starttls' | 'none';
+
+export interface MailContext {
+  available: boolean;
+  accounts_count: number;
+}
+
+export interface MailAccount {
+  id: number;
+  user_id: number;
+  label: string;
+  email_address: string;
+  imap_host: string;
+  imap_port: number;
+  imap_security: MailSecurity;
+  imap_username: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_security: MailSecurity;
+  smtp_username: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Mailbox {
+  name: string;
+}
+
+export interface MailboxStatus extends Mailbox {
+  messages: number | null;
+  unseen: number | null;
+}
+
+export interface MailMessageSummary {
+  uid: string;
+  subject: string;
+  from_name: string;
+  from_email: string;
+  date: string | null;
+  seen: boolean;
+  size: number | null;
+}
+
+export interface MailAddress {
+  name: string;
+  email: string;
+}
+
+export interface MailMessageDetail {
+  uid: string;
+  mailbox: string;
+  subject: string;
+  from: MailAddress;
+  to: MailAddress[];
+  cc: MailAddress[];
+  date: string | null;
+  seen: boolean;
+  size: number | null;
+  body_text: string;
+  body_html: string;
 }
 
 export type DockPosition = 'bottom' | 'left' | 'right';

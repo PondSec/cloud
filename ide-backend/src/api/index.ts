@@ -5,6 +5,7 @@ import { workspaceRouter } from './workspaces.js';
 import { fileRouter } from './files.js';
 import { gitRouter } from './git.js';
 import { taskRouter } from './tasks.js';
+import { searchRouter } from './search.js';
 
 export const apiRouter = Router();
 
@@ -13,3 +14,4 @@ apiRouter.use('/workspaces', workspaceRouter);
 apiRouter.use('/files', fileRouter);
 apiRouter.use('/git', gitRouter);
 apiRouter.use('/tasks', taskRouter);
+apiRouter.use('/search', searchRouter);

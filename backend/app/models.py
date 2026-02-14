@@ -6,7 +6,7 @@ from typing import Any
 from uuid import uuid4
 
 from argon2 import PasswordHasher
-from argon2.exceptions import VerifyMismatchError
+from argon2.exceptions import InvalidHashError, VerifyMismatchError
 
 from .extensions import db
 
@@ -113,6 +113,7 @@ class User(db.Model):
     bytes_used = db.Column(db.BigInteger, nullable=False, default=0)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+    inventory_pro_user_id = db.Column(db.String(128), unique=True, nullable=True, index=True)
 
     roles = db.relationship("Role", secondary=user_roles, lazy="joined")
     files = db.relationship("FileNode", back_populates="owner", cascade="all, delete-orphan")
@@ -121,6 +122,11 @@ class User(db.Model):
         "UserUiPreference",
         back_populates="user",
         uselist=False,
+        cascade="all, delete-orphan",
+    )
+    mail_accounts = db.relationship(
+        "MailAccount",
+        back_populates="user",
         cascade="all, delete-orphan",
     )
 
@@ -154,6 +160,8 @@ class User(db.Model):
             "bytes_used": self.bytes_used,
             "roles": [role.to_dict() for role in self.roles],
             "permissions": permission_codes,
+            "inventory_pro_user_id": self.inventory_pro_user_id,
+            "identity_provider": "inventory_pro" if self.inventory_pro_user_id else "local",
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -172,6 +180,55 @@ class UserUiPreference(db.Model):
         return {
             "user_id": self.user_id,
             "payload": self.payload_json or {},
+            "updated_at": self.updated_at.isoformat(),
+        }
+
+
+class MailAccount(db.Model):
+    __tablename__ = "mail_accounts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    label = db.Column(db.String(120), nullable=False, default="")
+    email_address = db.Column(db.String(255), nullable=False)
+
+    imap_host = db.Column(db.String(255), nullable=False)
+    imap_port = db.Column(db.Integer, nullable=False, default=993)
+    imap_security = db.Column(db.String(16), nullable=False, default="ssl")
+    imap_username = db.Column(db.String(255), nullable=False)
+    imap_password_ciphertext = db.Column(db.Text, nullable=False, default="")
+
+    smtp_host = db.Column(db.String(255), nullable=False)
+    smtp_port = db.Column(db.Integer, nullable=False, default=465)
+    smtp_security = db.Column(db.String(16), nullable=False, default="ssl")
+    smtp_username = db.Column(db.String(255), nullable=False)
+    smtp_password_ciphertext = db.Column(db.Text, nullable=False, default="")
+
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
+
+    user = db.relationship("User", back_populates="mail_accounts")
+
+    __table_args__ = (db.UniqueConstraint("user_id", "email_address", name="uq_mail_accounts_user_email"),)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "label": (self.label or "").strip(),
+            "email_address": (self.email_address or "").strip(),
+            "imap_host": (self.imap_host or "").strip(),
+            "imap_port": int(self.imap_port or 0),
+            "imap_security": (self.imap_security or "ssl").strip(),
+            "imap_username": (self.imap_username or "").strip(),
+            "smtp_host": (self.smtp_host or "").strip(),
+            "smtp_port": int(self.smtp_port or 0),
+            "smtp_security": (self.smtp_security or "ssl").strip(),
+            "smtp_username": (self.smtp_username or "").strip(),
+            "is_active": bool(self.is_active),
+            "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
 
@@ -277,6 +334,15 @@ class AppSettings(db.Model):
     allow_registration = db.Column(db.Boolean, nullable=False, default=False)
     max_upload_size = db.Column(db.BigInteger, nullable=False, default=25 * 1024 * 1024)
     default_quota = db.Column(db.BigInteger, nullable=False, default=5 * 1024 * 1024 * 1024)
+    inventory_pro_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    inventory_pro_base_url = db.Column(db.String(512), nullable=False, default="")
+    inventory_pro_sync_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    inventory_pro_sso_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    inventory_pro_enforce_sso = db.Column(db.Boolean, nullable=False, default=False)
+    inventory_pro_auto_provision_users = db.Column(db.Boolean, nullable=False, default=True)
+    inventory_pro_dock_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    inventory_pro_default_role_name = db.Column(db.String(64), nullable=False, default="user")
+    inventory_pro_shared_secret_hash = db.Column(db.String(255), nullable=False, default="")
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now, onupdate=utc_now)
 
     @classmethod
@@ -288,11 +354,48 @@ class AppSettings(db.Model):
             db.session.flush()
         return settings
 
+    @property
+    def has_inventory_pro_secret(self) -> bool:
+        return bool((self.inventory_pro_shared_secret_hash or "").strip())
+
+    def set_inventory_pro_shared_secret(self, secret: str) -> None:
+        cleaned = secret.strip()
+        if not cleaned:
+            self.inventory_pro_shared_secret_hash = ""
+            return
+        self.inventory_pro_shared_secret_hash = pwd_hasher.hash(cleaned)
+
+    def clear_inventory_pro_shared_secret(self) -> None:
+        self.inventory_pro_shared_secret_hash = ""
+
+    def verify_inventory_pro_shared_secret(self, secret: str) -> bool:
+        candidate = secret.strip()
+        if not candidate or not self.has_inventory_pro_secret:
+            return False
+        try:
+            return pwd_hasher.verify(self.inventory_pro_shared_secret_hash, candidate)
+        except (VerifyMismatchError, InvalidHashError):
+            return False
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "allow_registration": self.allow_registration,
             "max_upload_size": self.max_upload_size,
             "default_quota": self.default_quota,
+            "inventory_pro": {
+                "enabled": self.inventory_pro_enabled,
+                "base_url": (self.inventory_pro_base_url or "").strip(),
+                "sync_enabled": self.inventory_pro_sync_enabled,
+                "sso_enabled": self.inventory_pro_sso_enabled,
+                "enforce_sso": self.inventory_pro_enforce_sso,
+                "auto_provision_users": self.inventory_pro_auto_provision_users,
+                "dock_enabled": self.inventory_pro_dock_enabled,
+                "default_role_name": (self.inventory_pro_default_role_name or "user").strip() or "user",
+                "has_shared_secret": self.has_inventory_pro_secret,
+                "sync_endpoint": "/integration/inventorypro/users/sync",
+                "sso_ticket_endpoint": "/integration/inventorypro/sso/ticket",
+                "sso_exchange_endpoint": "/auth/inventorypro/exchange",
+            },
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 

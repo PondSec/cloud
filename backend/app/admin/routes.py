@@ -11,6 +11,7 @@ from ..common.errors import APIError
 from ..common.rbac import current_user, permission_required
 from ..common.storage import delete_storage_path
 from ..extensions import db
+from ..integration.service import normalize_inventory_pro_base_url
 from ..monitoring.quotas import get_or_create_quota, sync_quota_storage_usage
 from ..models import AppSettings, FileNode, FileNodeType, Permission, PermissionCode, Role, User
 
@@ -243,6 +244,59 @@ def update_settings():
         if value <= 0:
             raise APIError(400, "INVALID_SETTINGS", "default_quota must be > 0")
         settings.default_quota = value
+
+    inventory_payload = payload.get("inventory_pro")
+    if inventory_payload is not None:
+        if not isinstance(inventory_payload, dict):
+            raise APIError(400, "INVALID_SETTINGS", "inventory_pro must be an object.")
+
+        if "enabled" in inventory_payload:
+            settings.inventory_pro_enabled = bool(inventory_payload["enabled"])
+        if "base_url" in inventory_payload:
+            settings.inventory_pro_base_url = normalize_inventory_pro_base_url(str(inventory_payload.get("base_url") or ""))
+        if "sync_enabled" in inventory_payload:
+            settings.inventory_pro_sync_enabled = bool(inventory_payload["sync_enabled"])
+        if "sso_enabled" in inventory_payload:
+            settings.inventory_pro_sso_enabled = bool(inventory_payload["sso_enabled"])
+        if "enforce_sso" in inventory_payload:
+            settings.inventory_pro_enforce_sso = bool(inventory_payload["enforce_sso"])
+        if "auto_provision_users" in inventory_payload:
+            settings.inventory_pro_auto_provision_users = bool(inventory_payload["auto_provision_users"])
+        if "dock_enabled" in inventory_payload:
+            settings.inventory_pro_dock_enabled = bool(inventory_payload["dock_enabled"])
+        if "default_role_name" in inventory_payload:
+            role_name = str(inventory_payload.get("default_role_name") or "").strip()
+            if not role_name:
+                raise APIError(400, "INVALID_SETTINGS", "inventory_pro.default_role_name is required.")
+            role = Role.query.filter(func.lower(Role.name) == role_name.lower()).one_or_none()
+            if role is None:
+                raise APIError(400, "INVALID_SETTINGS", "inventory_pro.default_role_name does not exist.")
+            settings.inventory_pro_default_role_name = role.name
+
+        if bool(inventory_payload.get("clear_shared_secret")):
+            settings.clear_inventory_pro_shared_secret()
+
+        if "shared_secret" in inventory_payload:
+            secret_raw = str(inventory_payload.get("shared_secret") or "")
+            secret = secret_raw.strip()
+            if secret:
+                if len(secret) < 12:
+                    raise APIError(400, "INVALID_SETTINGS", "inventory_pro.shared_secret must be at least 12 characters.")
+                settings.set_inventory_pro_shared_secret(secret)
+
+    if settings.inventory_pro_enforce_sso and not settings.inventory_pro_sso_enabled:
+        raise APIError(400, "INVALID_SETTINGS", "inventory_pro.enforce_sso requires inventory_pro.sso_enabled.")
+
+    if settings.inventory_pro_enabled and not (settings.inventory_pro_base_url or "").strip():
+        raise APIError(400, "INVALID_SETTINGS", "inventory_pro.base_url is required when integration is enabled.")
+
+    if settings.inventory_pro_enabled and (settings.inventory_pro_sync_enabled or settings.inventory_pro_sso_enabled):
+        if not settings.has_inventory_pro_secret:
+            raise APIError(
+                400,
+                "INVALID_SETTINGS",
+                "inventory_pro.shared_secret is required when sync or SSO are enabled.",
+            )
 
     audit(
         action="admin.settings_update",

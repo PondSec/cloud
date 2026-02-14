@@ -2,6 +2,7 @@ import { Keyboard } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { DockNav } from '@/components/app/DockNav';
 import GlassSurface from '@/components/reactbits/GlassSurface';
 import LightPillar from '@/components/reactbits/LightPillar';
@@ -29,6 +30,7 @@ export function AppShell() {
     if (location.pathname.startsWith('/app/recents')) return 'Zuletzt';
     if (location.pathname.startsWith('/app/shared')) return 'Freigaben';
     if (location.pathname.startsWith('/app/media')) return 'Medien';
+    if (location.pathname.startsWith('/app/email')) return 'Email';
     if (location.pathname.startsWith('/app/settings')) return 'Einstellungen';
     if (location.pathname.startsWith('/app/admin')) return 'Verwaltung';
     if (location.pathname.startsWith('/app/monitoring')) return 'System';
@@ -208,7 +210,9 @@ export function AppShell() {
                 </div>
               </div>
             </div>
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </GlassSurface>
       </main>

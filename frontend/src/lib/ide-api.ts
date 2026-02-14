@@ -3,7 +3,30 @@ import axios from 'axios';
 import { clearIdeToken, getIdeToken } from './ide-auth';
 import type { FileNode, User, Workspace, WorkspaceSettings, WorkspaceRuntime } from './ide-types';
 
-const IDE_API_BASE_URL = import.meta.env.VITE_IDE_API_BASE_URL || 'http://localhost:18080';
+function stripTrailingSlash(value: string): string {
+  return value.endsWith('/') ? value.slice(0, -1) : value;
+}
+
+function computeIdeApiBaseUrl(): string {
+  // In dev we proxy IDE through Vite (/ide) so LAN access doesn't require opening :18080.
+  if (typeof window !== 'undefined' && import.meta.env.DEV) {
+    return stripTrailingSlash(`${window.location.origin}/ide`);
+  }
+
+  const envValue = String(import.meta.env.VITE_IDE_API_BASE_URL || '').trim();
+  if (envValue) {
+    return stripTrailingSlash(envValue);
+  }
+
+  if (typeof window !== 'undefined') {
+    // Default: use same-origin proxy route (see vite.config.ts).
+    return stripTrailingSlash(`${window.location.origin}/ide`);
+  }
+
+  return 'http://localhost:18080';
+}
+
+const IDE_API_BASE_URL = computeIdeApiBaseUrl();
 
 const ideClient = axios.create({
   baseURL: `${IDE_API_BASE_URL}/api`,
@@ -29,6 +52,20 @@ ideClient.interceptors.response.use(
 
 export function ideApiBaseUrl(): string {
   return IDE_API_BASE_URL;
+}
+
+export function idePreviewBaseUrl(): string {
+  const envValue = String(import.meta.env.VITE_IDE_API_BASE_URL || '').trim();
+  if (envValue) return stripTrailingSlash(envValue);
+
+  if (typeof window !== 'undefined') {
+    // Keep preview on a separate origin from the app to avoid preview code affecting the IDE UI.
+    const protocol = window.location.protocol || 'http:';
+    const hostname = window.location.hostname || 'localhost';
+    return stripTrailingSlash(`${protocol}//${hostname}:18080`);
+  }
+
+  return 'http://localhost:18080';
 }
 
 export const ideApi = {
@@ -145,6 +182,38 @@ export const ideApi = {
         `/tasks/${encodeURIComponent(workspaceId)}/tasks/run`,
         { task, command },
       );
+      return data;
+    },
+  },
+  search: {
+    async files(workspaceId: string, q: string, limit = 120): Promise<string[]> {
+      const { data } = await ideClient.get<{ items: string[] }>(`/search/${encodeURIComponent(workspaceId)}/files`, {
+        params: { q, limit },
+      });
+      return data.items;
+    },
+    async text(args: {
+      workspaceId: string;
+      query: string;
+      isRegex?: boolean;
+      caseSensitive?: boolean;
+      wholeWord?: boolean;
+      include?: string[] | string;
+      exclude?: string[] | string;
+      maxResults?: number;
+    }): Promise<{ items: Array<{ path: string; line: number; column: number; preview: string; match: string }>; truncated: boolean }> {
+      const { data } = await ideClient.post<{
+        items: Array<{ path: string; line: number; column: number; preview: string; match: string }>;
+        truncated: boolean;
+      }>(`/search/${encodeURIComponent(args.workspaceId)}/text`, {
+        query: args.query,
+        isRegex: args.isRegex ?? false,
+        caseSensitive: args.caseSensitive ?? false,
+        wholeWord: args.wholeWord ?? false,
+        include: args.include,
+        exclude: args.exclude,
+        maxResults: args.maxResults ?? 500,
+      });
       return data;
     },
   },

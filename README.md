@@ -26,7 +26,7 @@ python3 app.py
 - auto-manage backend Python runtime under `.runtime/`,
 - install missing `backend/` and `frontend/` dependencies,
 - seed admin user (`admin` / `admin123`),
-- start Flask on `http://127.0.0.1:5000`,
+- start Flask on `http://127.0.0.1:5001`,
 - start frontend on `http://127.0.0.1:5173`,
 - try to auto-start IDE services (`ide-backend` + `runner`) via Docker Compose.
 
@@ -35,6 +35,19 @@ python3 app.py
 - Cloud app: `http://127.0.0.1:5173/app/files`
 - IDE workspace list: `http://127.0.0.1:5173/dev/workspaces`
 - IDE API: `http://127.0.0.1:18080`
+
+## InventoryPro Integration
+
+Cloud can now be integrated directly with InventoryPro (same host or external host):
+
+1. Open `Admin -> Server`.
+2. Configure `InventoryPro URL`, enable integration, and set a shared secret.
+3. Optionally enable:
+   - user sync (`/integration/inventorypro/users/sync`)
+   - SSO ticket flow (`/integration/inventorypro/sso/ticket` + `/auth/inventorypro/exchange`)
+   - `Inventory Pro` item in the Cloud Dock.
+
+The Cloud backend stores an `inventory_pro_user_id` mapping per user so both systems can use a central user lifecycle.
 
 ## How To Use Monitoring Dashboard
 

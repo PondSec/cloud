@@ -13,10 +13,12 @@ export const DEFAULT_DOCK_ORDER = [
   '/app/recents',
   '/app/shared',
   '/app/media',
+  '/app/email',
   '/dev/workspaces',
   '/app/admin',
   '/app/monitoring',
   '/app/settings',
+  '/app/inventorypro',
 ] as const;
 
 const STORAGE_KEY_PREFIX = 'cloud_workspace_ui_prefs_user_';

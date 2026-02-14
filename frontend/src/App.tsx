@@ -7,6 +7,7 @@ import { RequireIdeAuth } from '@/components/auth/RequireIdeAuth';
 import { RequirePermission } from '@/components/auth/RequirePermission';
 import { PERMISSIONS } from '@/lib/permissions';
 import { AdminPage } from '@/pages/AdminPage';
+import { EmailPage } from '@/pages/EmailPage';
 import { FilesPage } from '@/pages/FilesPage';
 import { HomePage } from '@/pages/HomePage';
 import { IdePage } from '@/pages/IdePage';
@@ -78,6 +79,7 @@ export default function App() {
               </RequirePermission>
             }
           />
+          <Route path="email" element={<EmailPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route
             path="admin"

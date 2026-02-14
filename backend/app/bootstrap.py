@@ -3,6 +3,7 @@ from __future__ import annotations
 from flask import current_app
 
 from .extensions import db
+from .integration.service import normalize_inventory_pro_base_url
 from .models import AppSettings, Permission, PermissionCode, ResourceQuota, Role, User, utc_now
 
 
@@ -43,13 +44,32 @@ def ensure_roles_and_permissions() -> None:
 def ensure_settings() -> AppSettings:
     settings = db.session.get(AppSettings, 1)
     if settings is None:
+        try:
+            base_url = normalize_inventory_pro_base_url(current_app.config.get("INVENTORY_PRO_BASE_URL", ""))
+        except Exception:
+            base_url = ""
         settings = AppSettings(
             id=1,
             allow_registration=current_app.config["ALLOW_REGISTRATION"],
             max_upload_size=current_app.config["MAX_UPLOAD_SIZE_BYTES"],
             default_quota=current_app.config["DEFAULT_QUOTA_BYTES"],
+            inventory_pro_enabled=current_app.config.get("INVENTORY_PRO_ENABLED", False),
+            inventory_pro_base_url=base_url,
+            inventory_pro_sync_enabled=current_app.config.get("INVENTORY_PRO_SYNC_ENABLED", True),
+            inventory_pro_sso_enabled=current_app.config.get("INVENTORY_PRO_SSO_ENABLED", True),
+            inventory_pro_enforce_sso=current_app.config.get("INVENTORY_PRO_ENFORCE_SSO", False),
+            inventory_pro_auto_provision_users=current_app.config.get("INVENTORY_PRO_AUTO_PROVISION_USERS", True),
+            inventory_pro_dock_enabled=current_app.config.get("INVENTORY_PRO_DOCK_ENABLED", True),
+            inventory_pro_default_role_name=current_app.config.get("INVENTORY_PRO_DEFAULT_ROLE_NAME", "user"),
         )
+        initial_secret = str(current_app.config.get("INVENTORY_PRO_SHARED_SECRET", "") or "").strip()
+        if initial_secret:
+            settings.set_inventory_pro_shared_secret(initial_secret)
         db.session.add(settings)
+    elif not settings.has_inventory_pro_secret:
+        initial_secret = str(current_app.config.get("INVENTORY_PRO_SHARED_SECRET", "") or "").strip()
+        if initial_secret:
+            settings.set_inventory_pro_shared_secret(initial_secret)
     return settings
 
 

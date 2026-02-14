@@ -17,6 +17,13 @@ import type {
   NetworkResponse,
   OnlyOfficeSession,
   Permission,
+  InventoryProContext,
+  MailAccount,
+  MailContext,
+  MailMessageDetail,
+  MailMessageSummary,
+  Mailbox,
+  MailboxStatus,
   ResourceQuota,
   ResourceQuotaUsage,
   RestorePoint,
@@ -29,7 +36,7 @@ import type {
 } from '@/types/api';
 import { clearAuthSession, getAccessToken, getRefreshToken, setAccessToken } from './auth-storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -115,6 +122,14 @@ export const api = {
       const { data } = await client.get<{ user: User }>('/auth/me');
       return data.user;
     },
+    async inventoryProContext(): Promise<InventoryProContext> {
+      const { data } = await client.get<{ inventory_pro: InventoryProContext }>('/auth/inventorypro/context');
+      return data.inventory_pro;
+    },
+    async inventoryProExchange(ticket: string): Promise<AuthResponse> {
+      const { data } = await client.post<AuthResponse>('/auth/inventorypro/exchange', { ticket });
+      return data;
+    },
     async register(username: string, password: string): Promise<AuthResponse | { user: User }> {
       const { data } = await client.post<AuthResponse | { user: User }>('/auth/register', {
         username,
@@ -136,6 +151,77 @@ export const api = {
         payload,
       );
       return data;
+    },
+  },
+  mail: {
+    async context(): Promise<MailContext> {
+      const { data } = await client.get<{ mail: MailContext }>('/mail/context');
+      return data.mail;
+    },
+    async accounts(): Promise<MailAccount[]> {
+      const { data } = await client.get<{ items: MailAccount[] }>('/mail/accounts');
+      return data.items;
+    },
+    async createAccount(payload: {
+      label?: string;
+      email_address: string;
+      imap_host: string;
+      imap_port?: number;
+      imap_security?: 'ssl' | 'starttls' | 'none';
+      imap_username: string;
+      imap_password: string;
+      smtp_host: string;
+      smtp_port?: number;
+      smtp_security?: 'ssl' | 'starttls' | 'none';
+      smtp_username?: string;
+      smtp_password?: string;
+    }): Promise<MailAccount> {
+      const { data } = await client.post<{ item: MailAccount }>('/mail/accounts', payload);
+      return data.item;
+    },
+    async deleteAccount(accountId: number): Promise<void> {
+      await client.delete(`/mail/accounts/${accountId}`);
+    },
+    async testAccount(accountId: number): Promise<{
+      ok: boolean;
+      imap_ok: boolean;
+      smtp_ok: boolean;
+      inbox_messages: number | null;
+      inbox_uid_count: number | null;
+    }> {
+      const { data } = await client.post<{
+        ok: boolean;
+        imap_ok: boolean;
+        smtp_ok: boolean;
+        inbox_messages: number | null;
+        inbox_uid_count: number | null;
+      }>(`/mail/accounts/${accountId}/test`, {});
+      return data;
+    },
+    async mailboxes(accountId: number): Promise<Mailbox[]> {
+      const { data } = await client.get<{ items: Mailbox[] }>(`/mail/accounts/${accountId}/mailboxes`);
+      return data.items;
+    },
+    async mailboxesStatus(accountId: number): Promise<MailboxStatus[]> {
+      const { data } = await client.get<{ items: MailboxStatus[] }>(`/mail/accounts/${accountId}/mailboxes/status`);
+      return data.items;
+    },
+    async messages(accountId: number, mailbox = 'INBOX', limit = 50, offset = 0): Promise<MailMessageSummary[]> {
+      const params = new URLSearchParams();
+      params.set('mailbox', mailbox);
+      params.set('limit', String(limit));
+      params.set('offset', String(offset));
+      const { data } = await client.get<{ items: MailMessageSummary[] }>(`/mail/accounts/${accountId}/messages?${params.toString()}`);
+      return data.items;
+    },
+    async message(accountId: number, uid: string, mailbox = 'INBOX'): Promise<MailMessageDetail> {
+      const params = new URLSearchParams();
+      params.set('mailbox', mailbox);
+      const { data } = await client.get<{ item: MailMessageDetail }>(`/mail/accounts/${accountId}/messages/${encodeURIComponent(uid)}?${params.toString()}`);
+      return data.item;
+    },
+    async send(accountId: number, payload: { to: string[]; cc?: string[]; bcc?: string[]; subject: string; body_text: string }): Promise<void> {
+      await client.post(`/mail/accounts/${accountId}/send`, payload);
     },
   },
   files: {
@@ -204,7 +290,7 @@ export const api = {
       const { data } = await client.get<{ settings: AdminSettings }>('/admin/settings');
       return data.settings;
     },
-    async updateSettings(payload: Partial<AdminSettings>): Promise<AdminSettings> {
+    async updateSettings(payload: Record<string, unknown>): Promise<AdminSettings> {
       const { data } = await client.put<{ settings: AdminSettings }>('/admin/settings', payload);
       return data.settings;
     },

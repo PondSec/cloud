@@ -11,6 +11,7 @@ from ..common.errors import APIError
 from ..common.rate_limit import login_rate_limiter
 from ..common.rbac import current_user
 from ..extensions import db
+from ..integration.service import consume_inventory_pro_sso_ticket, inventory_pro_public_context
 from ..monitoring.quotas import get_or_create_quota
 from ..models import AppSettings, Role, User, UserUiPreference
 
@@ -23,10 +24,12 @@ ALLOWED_DOCK_PATHS = [
     "/app/recents",
     "/app/shared",
     "/app/media",
+    "/app/email",
     "/dev/workspaces",
     "/app/admin",
     "/app/monitoring",
     "/app/settings",
+    "/app/inventorypro",
 ]
 
 DEFAULT_UI_PREFERENCES: dict[str, Any] = {
@@ -231,6 +234,15 @@ def login():
     if not username or not password:
         raise APIError(400, "INVALID_CREDENTIALS", "Username and password are required.")
 
+    settings = AppSettings.singleton()
+    if settings.inventory_pro_enabled and settings.inventory_pro_enforce_sso:
+        raise APIError(
+            403,
+            "SSO_ENFORCED",
+            "Local login is disabled. Sign in via InventoryPro SSO.",
+            {"exchange_endpoint": "/auth/inventorypro/exchange"},
+        )
+
     remote_ip = (request.headers.get("X-Forwarded-For") or request.remote_addr or "unknown").split(",")[0].strip()
     rate_limit_key = f"{remote_ip}:{username.lower()}"
 
@@ -285,6 +297,38 @@ def me():
     user = current_user(required=True)
     assert user is not None
     return jsonify({"user": user.to_dict()})
+
+
+@auth_bp.get("/inventorypro/context")
+@jwt_required()
+def inventory_pro_context():
+    settings = AppSettings.singleton()
+    return jsonify({"inventory_pro": inventory_pro_public_context(settings)})
+
+
+@auth_bp.post("/inventorypro/exchange")
+def inventory_pro_exchange():
+    settings = AppSettings.singleton()
+    if not settings.inventory_pro_enabled or not settings.inventory_pro_sso_enabled:
+        raise APIError(403, "SSO_DISABLED", "InventoryPro SSO is disabled.")
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        raise APIError(400, "INVALID_PAYLOAD", "JSON object expected.")
+
+    ticket = str(payload.get("ticket") or "").strip()
+    user = consume_inventory_pro_sso_ticket(ticket)
+
+    audit(
+        action="auth.login_inventorypro",
+        actor=user,
+        target_type="user",
+        target_id=str(user.id),
+        details={"provider": "inventorypro"},
+    )
+    db.session.commit()
+
+    return jsonify(_token_response(user))
 
 
 @auth_bp.get("/ui-preferences")

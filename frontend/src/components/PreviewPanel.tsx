@@ -1,7 +1,9 @@
 import { ExternalLink, Play, RefreshCw } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
-import { ideApiBaseUrl } from '../lib/ide-api';
+import { idePreviewBaseUrl } from '../lib/ide-api';
 
 type PreviewMode = 'app' | 'markdown';
 
@@ -17,165 +19,52 @@ interface PreviewPanelProps {
   refreshToken: number;
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+function safeMarkdownUri(uri: string | null | undefined): string {
+  const raw = String(uri ?? '').trim();
+  if (!raw) return '';
+  const colon = raw.indexOf(':');
+  const questionMark = raw.indexOf('?');
+  const numberSign = raw.indexOf('#');
+  const slash = raw.indexOf('/');
+  const hasProtocol =
+    colon !== -1 &&
+    (slash === -1 || colon < slash) &&
+    (questionMark === -1 || colon < questionMark) &&
+    (numberSign === -1 || colon < numberSign);
+
+  // Relative URLs (including `#anchors`) are ok.
+  if (!hasProtocol) return raw;
+
+  const protocol = raw.slice(0, colon);
+  if (/^(https?|mailto)$/i.test(protocol)) return raw;
+  return '';
 }
 
-function renderInlineMarkdown(input: string): string {
-  let output = escapeHtml(input);
-  output = output.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, url) => {
-    const safeUrl = String(url).trim();
-    if (!/^(https?:\/\/|mailto:)/i.test(safeUrl)) {
-      return `${label} (${safeUrl})`;
-    }
-    return `<a href="${safeUrl}" target="_blank" rel="noreferrer">${label}</a>`;
-  });
-  output = output.replace(/`([^`]+)`/g, '<code>$1</code>');
-  output = output.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  output = output.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  return output;
+function isExternalHref(href: string): boolean {
+  return /^(https?:\/\/|mailto:)/i.test(href);
 }
 
-function markdownToHtml(markdown: string): string {
-  const lines = markdown.replace(/\r\n/g, '\n').split('\n');
-  const html: string[] = [];
-  let inCode = false;
-  let codeLanguage = '';
-  let codeLines: string[] = [];
-  let inUl = false;
-  let inOl = false;
-  let inQuote = false;
-
-  const closeLists = () => {
-    if (inUl) {
-      html.push('</ul>');
-      inUl = false;
+const markdownComponents: Components = {
+  a({ href, children, ...props }) {
+    const safeHref = safeMarkdownUri(href);
+    if (!safeHref) {
+      return <span>{children}</span>;
     }
-    if (inOl) {
-      html.push('</ol>');
-      inOl = false;
+    const external = isExternalHref(safeHref);
+    return (
+      <a href={safeHref} target={external ? '_blank' : undefined} rel={external ? 'noreferrer' : undefined} {...props}>
+        {children}
+      </a>
+    );
+  },
+  img({ src, alt, title, ...props }) {
+    const safeSrc = safeMarkdownUri(src);
+    if (!safeSrc) {
+      return <span>{alt || 'image'}</span>;
     }
-  };
-
-  const closeQuote = () => {
-    if (!inQuote) return;
-    html.push('</blockquote>');
-    inQuote = false;
-  };
-
-  const flushCodeBlock = () => {
-    const className = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : '';
-    html.push(`<pre><code${className}>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
-    codeLines = [];
-    codeLanguage = '';
-  };
-
-  for (const line of lines) {
-    const fenceMatch = line.match(/^```([a-zA-Z0-9_-]+)?\s*$/);
-    if (fenceMatch) {
-      if (inCode) {
-        flushCodeBlock();
-        inCode = false;
-      } else {
-        closeLists();
-        closeQuote();
-        inCode = true;
-        codeLanguage = fenceMatch[1] ?? '';
-      }
-      continue;
-    }
-
-    if (inCode) {
-      codeLines.push(line);
-      continue;
-    }
-
-    if (!line.trim()) {
-      closeLists();
-      closeQuote();
-      continue;
-    }
-
-    const headingMatch = line.match(/^(#{1,6})\s*(.+)$/);
-    if (headingMatch) {
-      closeLists();
-      closeQuote();
-      const level = (headingMatch[1] ?? '').length;
-      const headingText = headingMatch[2] ?? '';
-      html.push(`<h${level}>${renderInlineMarkdown(headingText)}</h${level}>`);
-      continue;
-    }
-
-    const quoteMatch = line.match(/^>\s?(.*)$/);
-    if (quoteMatch) {
-      closeLists();
-      if (!inQuote) {
-        html.push('<blockquote>');
-        inQuote = true;
-      }
-      const quoteText = quoteMatch[1] ?? '';
-      html.push(`<p>${renderInlineMarkdown(quoteText)}</p>`);
-      continue;
-    }
-
-    closeQuote();
-
-    const unorderedMatch = line.match(/^[-*+]\s+(.+)$/);
-    if (unorderedMatch) {
-      if (inOl) {
-        html.push('</ol>');
-        inOl = false;
-      }
-      if (!inUl) {
-        html.push('<ul>');
-        inUl = true;
-      }
-      const unorderedText = unorderedMatch[1] ?? '';
-      html.push(`<li>${renderInlineMarkdown(unorderedText)}</li>`);
-      continue;
-    }
-
-    const orderedMatch = line.match(/^\d+\.\s+(.+)$/);
-    if (orderedMatch) {
-      if (inUl) {
-        html.push('</ul>');
-        inUl = false;
-      }
-      if (!inOl) {
-        html.push('<ol>');
-        inOl = true;
-      }
-      const orderedText = orderedMatch[1] ?? '';
-      html.push(`<li>${renderInlineMarkdown(orderedText)}</li>`);
-      continue;
-    }
-
-    closeLists();
-
-    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())) {
-      html.push('<hr />');
-      continue;
-    }
-
-    html.push(`<p>${renderInlineMarkdown(line)}</p>`);
-  }
-
-  if (inCode) {
-    flushCodeBlock();
-  }
-  closeLists();
-  closeQuote();
-
-  if (!html.length) {
-    return '<p>Keine Markdown-Inhalte vorhanden.</p>';
-  }
-  return html.join('\n');
-}
+    return <img src={safeSrc} alt={alt ?? ''} title={title} loading="lazy" {...props} />;
+  },
+};
 
 export function PreviewPanel({
   workspaceId,
@@ -188,12 +77,11 @@ export function PreviewPanel({
   onToggleVisible,
   refreshToken,
 }: PreviewPanelProps) {
-  const previewUrl = `${ideApiBaseUrl()}/preview/${workspaceId}/${port}/?token=${encodeURIComponent(token)}`;
+  // Keep preview on IDE backend origin (usually :18080) so preview code can't tamper with the IDE UI via same-origin access.
+  const previewUrl = `${idePreviewBaseUrl()}/preview/${workspaceId}/${port}/?token=${encodeURIComponent(token)}`;
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [hint, setHint] = useState('');
   const [frameSrc, setFrameSrc] = useState(previewUrl);
-
-  const markdownHtml = useMemo(() => markdownToHtml(markdownSource), [markdownSource]);
 
   const withCacheBuster = (url: string): string => `${url}${url.includes('?') ? '&' : '?'}_ts=${Date.now()}`;
 
@@ -228,7 +116,9 @@ export function PreviewPanel({
         setHint('Die Vorschau läuft noch nicht. Starten Sie sie mit der Play-Taste.');
       } catch {
         if (!cancelled) {
-          setHint('Vorschau-Service nicht erreichbar. Bitte Vorschau mit Play starten.');
+          setHint(
+            'Vorschau-Service nicht erreichbar. Prüfen Sie, ob die IDE-API auf Port 18080 erreichbar ist (ggf. Firewall) und starten Sie die Vorschau mit Play.',
+          );
         }
       }
     };
@@ -245,7 +135,7 @@ export function PreviewPanel({
   }, [mode, refreshToken, previewUrl]);
 
   return (
-    <div className="preview-pane" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div className="preview-pane">
       <div className="editor-toolbar">
         <div className="row">
           {mode === 'markdown' ? `Markdown-Vorschau${activeFilePath ? ` · ${activeFilePath}` : ''}` : `Vorschau :${port}`}
@@ -286,7 +176,15 @@ export function PreviewPanel({
       </div>
 
       {mode === 'markdown' ? (
-        <div className="markdown-preview" dangerouslySetInnerHTML={{ __html: markdownHtml }} />
+        <div className="markdown-preview">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            urlTransform={(url) => safeMarkdownUri(url)}
+            components={markdownComponents}
+          >
+            {markdownSource || ''}
+          </ReactMarkdown>
+        </div>
       ) : (
         <>
           {hint ? (

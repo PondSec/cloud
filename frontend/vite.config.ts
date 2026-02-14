@@ -14,6 +14,14 @@ export default defineConfig({
     port: 5173,
     allowedHosts: ['cloud.pondsec.com'],
     proxy: {
+      // OnlyOffice is served from a separate Document Server (often a local Docker container).
+      // Proxy it through the dev server so reverse-proxied deployments don't need to expose extra ports.
+      '/onlyoffice': {
+        target: process.env.ONLYOFFICE_PROXY_TARGET || 'http://127.0.0.1:8081',
+        changeOrigin: true,
+        ws: true,
+        rewrite: (p) => p.replace(/^\/onlyoffice/, ''),
+      },
       // Dev API proxy so external access via a reverse proxy works without hardcoding localhost in the browser.
       '/api': {
         target: 'http://127.0.0.1:5001',

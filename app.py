@@ -430,13 +430,21 @@ def start_backend(
     )
 
 
-def start_frontend(port: int, backend_port: int, public_host: str) -> subprocess.Popen[str]:
+def start_frontend(
+    port: int,
+    backend_port: int,
+    public_host: str,
+    onlyoffice_proxy_target: str | None = None,
+) -> subprocess.Popen[str]:
     env = os.environ.copy()
     # Default to same-origin API path so external access via a reverse proxy works
     # without leaking LAN-only IPs into the browser bundle.
     env.setdefault("VITE_API_BASE_URL", "/api")
     # Keep IDE base URL dynamic (frontend defaults to same-origin `/ide` in production and
     # chooses `:18080` automatically on localhost/LAN in dev). Avoid baking LAN IPs into the bundle.
+    if onlyoffice_proxy_target:
+        # Used by vite.config.ts to proxy /onlyoffice to the actual Document Server.
+        env.setdefault("ONLYOFFICE_PROXY_TARGET", onlyoffice_proxy_target)
     env["FORCE_COLOR"] = "1"
     npm = npm_command()
     return subprocess.Popen(
@@ -551,6 +559,10 @@ def main() -> int:
                         chosen_onlyoffice_jwt_secret = managed_secret
 
             backend_env_overrides["ONLYOFFICE_DOCUMENT_SERVER_URL"] = chosen_onlyoffice_url
+            # Default to same-origin `/onlyoffice` so reverse-proxied deployments don't need
+            # to expose the Document Server port publicly (vite proxies it for dev).
+            if "ONLYOFFICE_PUBLIC_DOCUMENT_SERVER_URL" not in os.environ:
+                backend_env_overrides["ONLYOFFICE_PUBLIC_DOCUMENT_SERVER_URL"] = "/onlyoffice"
             backend_env_overrides["ONLYOFFICE_ENABLED"] = "true"
             if chosen_onlyoffice_jwt_secret:
                 backend_env_overrides["ONLYOFFICE_JWT_SECRET"] = chosen_onlyoffice_jwt_secret
@@ -598,6 +610,7 @@ def main() -> int:
                 port=args.frontend_port,
                 backend_port=args.backend_port,
                 public_host=public_host,
+                onlyoffice_proxy_target=chosen_onlyoffice_url,
             )
             processes.append(frontend_process)
 

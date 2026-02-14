@@ -160,6 +160,14 @@ export function OfficeEditorPage() {
             <p className="text-xs text-zinc-400">
               Stellen Sie sicher, dass der OnlyOffice Document Server erreichbar ist.
             </p>
+            {scriptUrl ? (
+              <p className="text-xs text-zinc-400">
+                Script URL:{' '}
+                <a className="underline decoration-white/20 underline-offset-4" href={scriptUrl} target="_blank" rel="noreferrer">
+                  <code>{scriptUrl}</code>
+                </a>
+              </p>
+            ) : null}
             <Button
               variant="secondary"
               onClick={() => {

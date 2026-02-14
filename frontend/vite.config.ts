@@ -14,6 +14,12 @@ export default defineConfig({
     port: 5173,
     allowedHosts: ['cloud.pondsec.com'],
     proxy: {
+      // Dev API proxy so external access via a reverse proxy works without hardcoding localhost in the browser.
+      '/api': {
+        target: 'http://127.0.0.1:5001',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api/, ''),
+      },
       // Make IDE accessible via the same origin (useful for LAN access where :18080 may be blocked).
       '/ide': {
         target: 'http://127.0.0.1:18080',

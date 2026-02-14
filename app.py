@@ -432,7 +432,9 @@ def start_backend(
 
 def start_frontend(port: int, backend_port: int, public_host: str) -> subprocess.Popen[str]:
     env = os.environ.copy()
-    env["VITE_API_BASE_URL"] = f"http://{public_host}:{backend_port}"
+    # Default to same-origin API path so external access via a reverse proxy works
+    # without leaking LAN-only IPs into the browser bundle.
+    env.setdefault("VITE_API_BASE_URL", "/api")
     env.setdefault("VITE_IDE_API_BASE_URL", f"http://{public_host}:18080")
     env["FORCE_COLOR"] = "1"
     npm = npm_command()

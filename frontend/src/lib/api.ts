@@ -36,7 +36,8 @@ import type {
 } from '@/types/api';
 import { clearAuthSession, getAccessToken, getRefreshToken, setAccessToken } from './auth-storage';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+// Default to same-origin `/api` so the app works behind a reverse proxy without hardcoding localhost.
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 interface RetriableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;

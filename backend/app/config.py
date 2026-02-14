@@ -59,6 +59,11 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=env_int("ACCESS_TOKEN_EXPIRES_MINUTES", 15))
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=env_int("REFRESH_TOKEN_EXPIRES_DAYS", 7))
 
+    JWT_ENCODE_ISSUER = env_str("JWT_ISSUER", "cloud-backend")
+    JWT_DECODE_ISSUER = JWT_ENCODE_ISSUER
+    JWT_ENCODE_AUDIENCE = env_str("JWT_AUDIENCE", "cloud-clients")
+    JWT_DECODE_AUDIENCE = JWT_ENCODE_AUDIENCE
+
     FRONTEND_ORIGINS = env_origins()
     FRONTEND_ORIGIN = FRONTEND_ORIGINS[0]
     STORAGE_ROOT = os.getenv("STORAGE_ROOT", str(BASE_DIR / "storage"))

@@ -6,6 +6,7 @@ async function runnerRequest(path, init) {
         ...init,
         headers: {
             'content-type': 'application/json',
+            'x-runner-secret': config.runnerSharedSecret,
             ...(init?.headers ?? {}),
         },
     });

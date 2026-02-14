@@ -30,6 +30,18 @@ python3 app.py
 - start frontend on `http://127.0.0.1:5173`,
 - try to auto-start IDE services (`ide-backend` + `runner`) via Docker Compose.
 
+
+## Security baseline for public hosting
+
+1. Copy `.env.example` to `.env` and set strong random values for:
+   - `JWT_SECRET_KEY`
+   - `JWT_SECRET`
+   - `APP_ENCRYPTION_KEY`
+   - `RUNNER_SHARED_SECRET`
+2. Start compose with that environment loaded (the compose files now fail fast if secrets are missing).
+3. Configure token metadata consistently (`JWT_ISSUER`, `JWT_AUDIENCE`) across backend deployments.
+4. Keep `runner` internal-only; all runner HTTP/WS calls now require `x-runner-secret`.
+
 ## URLs
 
 - Cloud app: `http://127.0.0.1:5173/app/files`

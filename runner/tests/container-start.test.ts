@@ -18,6 +18,8 @@ describe('workspace container start args', () => {
     expect(args).toContain('ALL');
     expect(args).toContain('--security-opt');
     expect(args).toContain('no-new-privileges');
+    expect(args).toContain('seccomp=default');
+    expect(args).toContain('--read-only');
     expect(args).toContain('--cpus');
     expect(args).toContain('1.5');
     expect(args).toContain('--memory');

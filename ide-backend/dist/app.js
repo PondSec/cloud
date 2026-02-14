@@ -9,17 +9,27 @@ import { apiRouter } from './api/index.js';
 import { previewRouter } from './api/preview.js';
 import { HttpError } from './utils/http-error.js';
 import { handleWsUpgrade } from './ws/bridge.js';
+import { isAllowedOrigin } from './utils/origin.js';
 export function createAppServer() {
     fs.mkdirSync(config.workspacesRoot, { recursive: true });
     const allowedOrigins = config.corsOrigin
         .split(',')
         .map((value) => value.trim())
         .filter(Boolean);
+    const allowAllOrigins = allowedOrigins.includes('*');
+    const originPolicy = {
+        allowedOrigins,
+        allowAllOrigins,
+    };
     const app = express();
     app.use(morgan('dev'));
     app.use(cors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin)) {
+            if (!origin) {
+                callback(null, true);
+                return;
+            }
+            if (isAllowedOrigin(origin, originPolicy.allowedOrigins, originPolicy.allowAllOrigins)) {
                 callback(null, true);
                 return;
             }
@@ -44,7 +54,7 @@ export function createAppServer() {
     const server = http.createServer(app);
     const wss = new WebSocketServer({ noServer: true });
     server.on('upgrade', (req, socket, head) => {
-        void handleWsUpgrade(req, socket, head, wss);
+        void handleWsUpgrade(req, socket, head, wss, originPolicy.allowedOrigins, originPolicy.allowAllOrigins);
     });
     return { app, server };
 }

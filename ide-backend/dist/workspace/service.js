@@ -4,9 +4,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { createWorkspace, deleteWorkspace, findWorkspace, getWorkspaceSettings, listWorkspaces, renameWorkspace, setWorkspaceSettings, updateWorkspaceTimestamp, } from '../db.js';
 import { config } from '../config.js';
 import { HttpError } from '../utils/http-error.js';
+import { assertWorkspaceId } from '../utils/workspace-id.js';
 import { scaffoldTemplate, templateDefaults } from './templates.js';
 export function workspaceRootPath(workspaceId) {
-    return path.join(config.workspacesRoot, workspaceId);
+    return path.join(config.workspacesRoot, assertWorkspaceId(workspaceId));
 }
 export async function createWorkspaceForUser(args) {
     const now = new Date().toISOString();
@@ -30,7 +31,8 @@ export function listUserWorkspaces(userId) {
     return listWorkspaces(userId);
 }
 export function requireWorkspace(workspaceId, userId) {
-    const workspace = findWorkspace(workspaceId, userId);
+    const safeWorkspaceId = assertWorkspaceId(workspaceId);
+    const workspace = findWorkspace(safeWorkspaceId, userId);
     if (!workspace) {
         throw new HttpError(404, 'Workspace not found');
     }
@@ -38,18 +40,21 @@ export function requireWorkspace(workspaceId, userId) {
 }
 export async function removeWorkspace(workspaceId, userId) {
     requireWorkspace(workspaceId, userId);
-    deleteWorkspace(workspaceId, userId);
-    await fs.rm(workspaceRootPath(workspaceId), { recursive: true, force: true });
+    const safeWorkspaceId = assertWorkspaceId(workspaceId);
+    deleteWorkspace(safeWorkspaceId, userId);
+    await fs.rm(workspaceRootPath(safeWorkspaceId), { recursive: true, force: true });
 }
 export function renameWorkspaceForUser(workspaceId, userId, name) {
     requireWorkspace(workspaceId, userId);
-    renameWorkspace(workspaceId, userId, name);
-    return requireWorkspace(workspaceId, userId);
+    const safeWorkspaceId = assertWorkspaceId(workspaceId);
+    renameWorkspace(safeWorkspaceId, userId, name);
+    return requireWorkspace(safeWorkspaceId, userId);
 }
 export function readWorkspaceSettings(workspaceId) {
-    return getWorkspaceSettings(workspaceId);
+    return getWorkspaceSettings(assertWorkspaceId(workspaceId));
 }
 export function writeWorkspaceSettings(workspaceId, settings) {
-    setWorkspaceSettings(workspaceId, settings);
-    updateWorkspaceTimestamp(workspaceId);
+    const safeWorkspaceId = assertWorkspaceId(workspaceId);
+    setWorkspaceSettings(safeWorkspaceId, settings);
+    updateWorkspaceTimestamp(safeWorkspaceId);
 }

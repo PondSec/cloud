@@ -18,6 +18,7 @@ function envBool(name, fallback) {
     return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase());
 }
 export const config = {
+    nodeEnv: env('NODE_ENV', 'development'),
     port: envInt('PORT', 8081),
     dockerBin: env('DOCKER_BIN', 'docker'),
     workspaceImage: env('WORKSPACE_IMAGE', 'cloudide-workspace:latest'),
@@ -28,6 +29,10 @@ export const config = {
     defaultMemLimit: env('DEFAULT_MEM_LIMIT', '1024m'),
     defaultPidsLimit: envInt('DEFAULT_PIDS_LIMIT', 256),
     defaultAllowEgress: envBool('DEFAULT_ALLOW_EGRESS', true),
+    runnerSharedSecret: env('RUNNER_SHARED_SECRET', 'dev-runner-shared-secret-change-me'),
     workspaceImageContext: env('WORKSPACE_IMAGE_CONTEXT', '/infra/workspace-image'),
     workspaceImageDockerfile: env('WORKSPACE_IMAGE_DOCKERFILE', '/infra/workspace-image/Dockerfile'),
 };
+if (config.nodeEnv === 'production' && config.runnerSharedSecret === 'dev-runner-shared-secret-change-me') {
+    throw new Error('RUNNER_SHARED_SECRET must be set to a strong value in production.');
+}

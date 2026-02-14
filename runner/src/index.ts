@@ -4,6 +4,7 @@ import http from 'node:http';
 import express from 'express';
 import morgan from 'morgan';
 
+import { requireRunnerSecret } from './auth.js';
 import { config } from './config.js';
 import { containerRouter } from './api/containers.js';
 import { previewRouter } from './api/preview.js';
@@ -22,8 +23,8 @@ async function main(): Promise<void> {
     res.json({ ok: true, service: 'runner' });
   });
 
-  app.use('/containers', containerRouter);
-  app.use('/preview', previewRouter);
+  app.use('/preview', requireRunnerSecret, previewRouter);
+  app.use('/containers', requireRunnerSecret, containerRouter);
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     const message = error instanceof Error ? error.message : String(error);

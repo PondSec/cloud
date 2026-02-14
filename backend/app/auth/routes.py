@@ -3,12 +3,13 @@ from __future__ import annotations
 from typing import Any
 
 from flask import Blueprint, current_app, jsonify, request
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, verify_jwt_in_request
+from flask_jwt_extended import create_access_token, create_refresh_token, get_jwt, jwt_required, verify_jwt_in_request
 from sqlalchemy import func
 
 from ..common.audit import audit
 from ..common.errors import APIError
 from ..common.rate_limit import login_rate_limiter
+from ..common.token_store import used_refresh_tokens
 from ..common.rbac import current_user
 from ..extensions import db
 from ..integration.service import consume_inventory_pro_sso_ticket, inventory_pro_public_context
@@ -387,11 +388,13 @@ def refresh():
     user = current_user(required=True)
     assert user is not None
 
-    access_token = create_access_token(
-        identity=str(user.id),
-        additional_claims={
-            "roles": [role.name for role in user.roles],
-            "permissions": sorted({permission.code for role in user.roles for permission in role.permissions}),
-        },
-    )
-    return jsonify({"access_token": access_token})
+    jwt_payload = get_jwt()
+    refresh_jti = str(jwt_payload.get('jti') or '')
+    refresh_exp = int(jwt_payload.get('exp') or 0)
+    if not refresh_jti or refresh_exp <= 0:
+        raise APIError(401, 'INVALID_TOKEN', 'Refresh token is malformed.')
+    if used_refresh_tokens.was_used(refresh_jti):
+        raise APIError(401, 'TOKEN_REUSED', 'Refresh token has already been used.')
+
+    used_refresh_tokens.mark_used(refresh_jti, refresh_exp)
+    return jsonify(_token_response(user))
